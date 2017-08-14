@@ -51,7 +51,6 @@ FieldInfo_STRUCT** CopyTableHeader(FieldInfo_STRUCT** ppHeader)
 	
 	for (int i = 0; i < count;++i)
 	{
-		//ppNew[i] = ppHeader[i];
 		ppNew[i] = new FieldInfo_STRUCT;
 		memcpy(ppNew[i], ppHeader[i], sizeof(FieldInfo_STRUCT));
 	}
@@ -62,9 +61,6 @@ void DeleteTableHeader(FieldInfo_STRUCT** ppHeader)
 {
 	if (ppHeader == nullptr)
 		return;
-
-	//原有创建方法是一个连续区域，使用时容易出错
-	//delete[] ppHeader;
 
 	int i = 0;
 	while (ppHeader[i] != 0)
@@ -381,32 +377,43 @@ void CharTable2GDLB(FieldInfo_STRUCT** ppFieldInfos, char** ppTable, GDLB_STRUCT
 	ppResults[count] = nullptr;
 	*pppResults = ppResults;
 
-	int col_123 = GetIndexByFieldID(ppFieldInfos, FIELD_GDDM);
-	int col_124 = GetIndexByFieldID(ppFieldInfos, FIELD_GDMC);
-	int col_125 = GetIndexByFieldID(ppFieldInfos, FIELD_ZHLB);
-	int col_121 = GetIndexByFieldID(ppFieldInfos, FIELD_ZJZH);
-	int col_173 = GetIndexByFieldID(ppFieldInfos, FIELD_XWDM);
-	int col_281 = GetIndexByFieldID(ppFieldInfos, FIELD_RZRQBS);
-	int col_1213 = GetIndexByFieldID(ppFieldInfos, FIELD_BLXX);
-
 	for (int i = 0; i < count; ++i)
 	{
 		ppResults[i] = new GDLB_STRUCT();
 
-		//if (col_123 >= 0)
-		strcpy_s(ppResults[i]->GDDM, ppTable[i * COL_EACH_ROW + col_123]);
-		//if (col_124 >= 0)
-		strcpy_s(ppResults[i]->GDMC, ppTable[i * COL_EACH_ROW + col_124]);
-		if (col_121 >= 0)
-			strcpy_s(ppResults[i]->ZJZH, ppTable[i * COL_EACH_ROW + col_121]);
-		//if (col_125 >= 0)
-		strcpy_s(ppResults[i]->ZHLB, ppTable[i * COL_EACH_ROW + col_125]);
-		if (col_173 >= 0)
-			strcpy_s(ppResults[i]->XWDM, ppTable[i * COL_EACH_ROW + col_173]);
-		if (col_281 >= 0)
-			strcpy_s(ppResults[i]->RZRQBS, ppTable[i * COL_EACH_ROW + col_281]);
-		if (col_1213 >= 0)
-			strcpy_s(ppResults[i]->BLXX, ppTable[i * COL_EACH_ROW + col_1213]);
+		int j = 0;
+		FieldInfo_STRUCT* pRow = ppFieldInfos[j];
+		while (pRow != 0)
+		{
+			char* t = ppTable[i * COL_EACH_ROW + j];
+			switch (pRow->FieldID)
+			{
+			case FIELD_GDDM:
+				strcpy_s(ppResults[i]->GDDM, t);
+				break;
+			case FIELD_GDMC:
+				strcpy_s(ppResults[i]->GDMC, t);
+				break;
+			case FIELD_ZHLB:
+				strcpy_s(ppResults[i]->ZHLB, t);
+				break;
+			case FIELD_ZJZH:
+				strcpy_s(ppResults[i]->ZJZH, t);
+				break;
+			case FIELD_XWDM:
+				strcpy_s(ppResults[i]->XWDM, t);
+				break;
+			case FIELD_RZRQBS:
+				strcpy_s(ppResults[i]->RZRQBS, t);
+				break;
+			case FIELD_BLXX:
+				strcpy_s(ppResults[i]->BLXX, t);
+				break;
+			}
+
+			++j;
+			pRow = ppFieldInfos[j];
+		}
 
 		ppResults[i]->ZHLB_ = atoi(ppResults[i]->ZHLB);
 		ppResults[i]->RZRQBS_ = atoi(ppResults[i]->RZRQBS);
@@ -417,6 +424,9 @@ void CharTable2GDLB(FieldInfo_STRUCT** ppFieldInfos, char** ppTable, GDLB_STRUCT
 
 void DeleteStructs(void*** pppStructs)
 {
+	if (pppStructs == nullptr)
+		return;
+
 	if (*pppStructs == nullptr)
 		return;
 
@@ -452,8 +462,13 @@ A341083000|LK|1|                         |主股东|
 8
 E015976151|HT|1|88500918|		12982|1|	|主股东|
 0601605823|HT|0|88500918|		354000|1|	|主股东|
+
+8
+101313017766|0026087534|ZL|0|     304300|0|0|主股东|
+101313017766|A511876656|ZL|1|     55005|0|0|主股东|
 */
-void String2GDLB(char* szString, GDLB_STRUCT*** pppResults, void* Client)
+// 发现不准，从登录信息中猜测式解析不准，需要换一种方式
+void String2GDLB1(char* szString, GDLB_STRUCT*** pppResults, void* Client)
 {
 	*pppResults = nullptr;
 	if (szString == nullptr)
@@ -537,26 +552,267 @@ void String2GDLB(char* szString, GDLB_STRUCT*** pppResults, void* Client)
 	delete[] pBuf;
 }
 
-void CharTable2Login(char** ppTable, GDLB_STRUCT*** pppResults, void* Client)
+// 这种方式假定登录时的格式与直接查询的格式是完全一样的
+void String2GDLB2(FieldInfo_STRUCT** ppFieldInfos, char* szString, GDLB_STRUCT*** pppResults, void* Client, char* ZJZH)
+{
+	*pppResults = nullptr;
+	if (szString == nullptr)
+		return;
+
+	char* pBuf = new char[strlen(szString) + 1];
+	strcpy(pBuf, szString);
+
+	vector<char*> vct;
+
+	// 分好多少列
+	char* token = strtok(pBuf, "\r\n");
+	int i = 0;
+	while (token)
+	{
+		if (i>0)
+		{
+			vct.push_back(token);
+		}
+		token = strtok(nullptr, "\r\n");
+		++i;
+	}
+
+	int count = vct.size();
+
+	GDLB_STRUCT** ppResults = new GDLB_STRUCT*[count + 1]();
+	ppResults[count] = nullptr;
+	*pppResults = ppResults;
+
+	for (int i = 0; i < count; ++i)
+	{
+		ppResults[i] = new GDLB_STRUCT();
+
+		int header_count = GetCountTableHeader(ppFieldInfos);
+
+		char* pLast = vct[i];
+		char* pCurr = strstr(vct[i], "|");
+
+		for (int j = 0; j < header_count; ++j)
+		{
+			if (pCurr == nullptr)
+				break;
+
+			*pCurr = 0;
+			char* t = pLast;
+
+			FieldInfo_STRUCT* pRow = ppFieldInfos[j];
+			switch (pRow->FieldID)
+			{
+			case FIELD_GDDM:
+				strcpy_s(ppResults[i]->GDDM, t);
+				break;
+			case FIELD_GDMC:
+				strcpy_s(ppResults[i]->GDMC, t);
+				break;
+			case FIELD_ZHLB:
+				strcpy_s(ppResults[i]->ZHLB, t);
+				break;
+			case FIELD_ZJZH:
+				strcpy_s(ppResults[i]->ZJZH, t);
+				// 银河证券会出现资金账号为空的情况，只能从其它地方获取
+				if (strlen(t) <= 0)
+				{
+					strcpy_s(ppResults[i]->ZJZH, ZJZH);
+				}
+				break;
+			case FIELD_XWDM:
+				strcpy_s(ppResults[i]->XWDM, t);
+				break;
+			case FIELD_RZRQBS:
+				strcpy_s(ppResults[i]->RZRQBS, t);
+				break;
+			case FIELD_BLXX:
+				strcpy_s(ppResults[i]->BLXX, t);
+				break;
+			case FIELD_JB:
+				strcpy_s(ppResults[i]->JB, t);
+			default:
+				break;
+			}
+
+			pLast = pCurr + 1;
+			pCurr = strstr(pLast, "|");
+		}
+
+		ppResults[i]->ZHLB_ = atoi(ppResults[i]->ZHLB);
+		ppResults[i]->RZRQBS_ = atoi(ppResults[i]->RZRQBS);
+
+		ppResults[i]->Client = Client;
+	}
+
+	delete[] pBuf;
+}
+
+void String_148(FieldInfo_STRUCT** ppFieldInfos, char* szString, REQ148_STRUCT*** pppResults, void* Client)
+{
+	*pppResults = nullptr;
+	if (szString == nullptr)
+		return;
+
+	char* pBuf = new char[strlen(szString) + 1];
+	strcpy(pBuf, szString);
+
+	vector<char*> vct;
+
+	// 分好多少列
+	char* token = strtok(pBuf, "\r\n");
+	int i = 0;
+	while (token)
+	{
+		if (i>0)
+		{
+			vct.push_back(token);
+		}
+		token = strtok(nullptr, "\r\n");
+		++i;
+	}
+
+	int count = vct.size();
+
+	REQ148_STRUCT** ppResults = new REQ148_STRUCT*[count + 1]();
+	ppResults[count] = nullptr;
+	*pppResults = ppResults;
+
+	for (int i = 0; i < count; ++i)
+	{
+		ppResults[i] = new REQ148_STRUCT();
+
+		// 不用strtok是因为第1位，和空白位会丢失，导致数据处理错误
+		int header_count = GetCountTableHeader(ppFieldInfos);
+
+		char* pLast = vct[i];
+		char* pCurr = strstr(vct[i], "|");
+
+		for (int j = 0; j < header_count; ++j)
+		{
+			// 国金，取出来的一条记录没有4个，只有3个
+			if (pCurr == nullptr)
+				break;
+
+			*pCurr = 0;
+			char* t = pLast;
+
+			FieldInfo_STRUCT* pRow = ppFieldInfos[j];
+			switch (pRow->FieldID)
+			{
+			case FIELD_KHH:
+				strcpy_s(ppResults[i]->CPZH, t);
+				break;
+			case FIELD_ZHLB:
+				strcpy_s(ppResults[i]->ZHLB, t);
+				break;
+			case FIELD_FJYZHBZ:
+				strcpy_s(ppResults[i]->FJYZHBZ, t);
+				break;
+			case FIELD_RZRQBS:
+				strcpy_s(ppResults[i]->RZRQBS, t);
+				break;
+			case FIELD_BLXX:
+				strcpy_s(ppResults[i]->BLXX, t);
+				break;
+			default:
+				break;
+			}
+
+			pLast = pCurr + 1;
+			pCurr = strstr(pLast, "|");
+		}
+
+		ppResults[i]->Client = Client;
+	}
+
+	delete[] pBuf;
+}
+
+void CharTable2GDLB3(char* ppTable, GDLB_STRUCT*** pppResults, void* Client)
 {
 	*pppResults = nullptr;
 	if (ppTable == nullptr)
 		return;
 
+}
+
+void CharTable2Login(FieldInfo_STRUCT** ppFieldInfos, char** ppTable, GDLB_STRUCT*** pppResults, void* Client, FieldInfo_STRUCT** ppFieldInfos_148,char* CPZH)
+{
+	*pppResults = nullptr;
+	if (ppTable == nullptr)
+		return;
+
+	bool bFind = false;
 	// 如果有数据，第一列就不为空
 	int i = 0;
 	int j = 0;
 	char* p = ppTable[i * COL_EACH_ROW + j];
+
+	// 产品账号，即资金账号
+	//char CPZH[32] = { 0 };
 	while (p != nullptr)
 	{
 		int requstid = atoi(p);
+		// 银河证券没有资金账号，只有句柄，得想法转成资金账号
+		if ((requstid == REQUEST_148 + 1) && (ppFieldInfos_148 != nullptr))
+		{	
+			// 这里假定句柄关系可以提前取到
+			REQ148_STRUCT** ppRS = nullptr;
+			String_148(ppFieldInfos_148, ppTable[i * COL_EACH_ROW + 2], &ppRS, Client);
+			// 复制，然后清理
+			int count = GetCountStructs((void**)ppRS);
+			if (count > 0)
+			{
+				strcpy(CPZH, ppRS[0]->CPZH);
+			}
+
+			DeleteStructs((void***)&ppRS);
+		}
+
 		if (requstid == REQUEST_GDLB + 1)
 		{
-			String2GDLB(ppTable[i * COL_EACH_ROW + 2], pppResults, Client);
+			String2GDLB2(ppFieldInfos, ppTable[i * COL_EACH_ROW + 2], pppResults, Client, CPZH);
+			bFind = true;
 		}
 
 		++i;
 		p = ppTable[i * COL_EACH_ROW + j];
+	}
+
+	// 香港账号可能没有开头的一些数字，只能自己识别
+	// 光证国际，登录时的资金帐号，查询股东列表，两个数据完全不一样，再查一次会覆盖
+	if (!bFind)
+	{
+		int count = 1;
+		GDLB_STRUCT** ppResults = new GDLB_STRUCT*[count + 1]();
+		ppResults[count] = nullptr;
+		*pppResults = ppResults;
+
+
+		int i = 0;
+		int j = 0;
+		char* p = ppTable[i * COL_EACH_ROW + j];
+		int pos = 0;
+
+		while (p != nullptr)
+		{
+			char * flag = ppTable[i * COL_EACH_ROW + 10];
+			if (flag)
+			{
+				if (strcmp(flag, "资金帐号") == 0)
+				{
+					ppResults[pos] = new GDLB_STRUCT();
+
+					strcpy_s(ppResults[pos]->ZJZH, ppTable[i * COL_EACH_ROW + 0]);
+					strcpy_s(ppResults[pos]->GDMC, ppTable[i * COL_EACH_ROW + 1]);
+					++pos;
+				}
+			}
+
+			++i;
+			p = ppTable[i * COL_EACH_ROW + j];
+		}
 	}
 
 	return;
@@ -577,14 +833,431 @@ int GetCountStructs(void** ppResults)
 	return i;
 }
 
-void DeleteRequestRespone(RequestRespone_STRUCT* pRespone)
+void DeleteRequestRespone(RequestResponse_STRUCT* pRespone)
 {
 	if (pRespone == nullptr)
 		return;
 
 	DeleteTableBody(pRespone->ppResults);
 	DeleteError(pRespone->pErr);
+	// 会不会是由它导致的每次内存没有释放干净？
+	//delete[] pRespone;
 }
+
+void CharTable2XGSGEDCX(FieldInfo_STRUCT** ppFieldInfos, char** ppTable, XGSGEDCX_STRUCT*** pppResults, void* Client)
+{
+	*pppResults = nullptr;
+	if (ppTable == nullptr)
+		return;
+
+	int count = GetRowCountTableBody(ppTable);
+	if (count <= 0)
+		return;
+
+	XGSGEDCX_STRUCT** ppResults = new XGSGEDCX_STRUCT*[count + 1]();
+	ppResults[count] = nullptr;
+	*pppResults = ppResults;
+
+	for (int i = 0; i < count; ++i)
+	{
+		ppResults[i] = new XGSGEDCX_STRUCT();
+
+		int j = 0;
+		FieldInfo_STRUCT* pRow = ppFieldInfos[j];
+		while (pRow != 0)
+		{
+			char* t = ppTable[i * COL_EACH_ROW + j];
+			switch (pRow->FieldID)
+			{
+			case FIELD_ZJZH:
+				strcpy_s(ppResults[i]->ZJZH, t);
+				break;
+			case FIELD_CS:
+				strcpy_s(ppResults[i]->CS, t);
+				break;
+			case FIELD_ZHLB:
+				strcpy_s(ppResults[i]->ZHLB, t);
+				break;
+			case FIELD_GDDM:
+				strcpy_s(ppResults[i]->GDDM, t);
+				break;
+			case FIELD_JYSMC:
+				strcpy_s(ppResults[i]->JYSMC, t);
+				break;
+			case FIELD_XGSGED:
+				strcpy_s(ppResults[i]->XGSGED, t);
+				break;
+			case FIELD_KSGED:
+				strcpy_s(ppResults[i]->KSGED, t);
+				break;
+			case FIELD_CZSJ:
+				strcpy_s(ppResults[i]->CZSJ, t);
+				break;
+			case FIELD_JB:
+				strcpy_s(ppResults[i]->JB, t);
+				break;
+			case FIELD_BLXX:
+				strcpy_s(ppResults[i]->BLXX, t);
+				break;
+			case FIELD_SGED_961:
+				strcpy_s(ppResults[i]->SGED_961, t);
+				break;
+			case FIELD_XGSGED_5564:
+				strcpy_s(ppResults[i]->XGSGED_5564, t);
+				break;
+			case FIELD_ZHED:
+				strcpy_s(ppResults[i]->ZHED, t);
+				break;
+			}
+			++j;
+			pRow = ppFieldInfos[j];
+		}
+
+		
+		ppResults[i]->CS_ = atof(ppResults[i]->CS);
+		ppResults[i]->ZHLB_ = atoi(ppResults[i]->ZHLB);
+		ppResults[i]->XGSGED_ = atof(ppResults[i]->XGSGED);
+		ppResults[i]->SGED_961_ = atof(ppResults[i]->SGED_961);
+		ppResults[i]->KSGED_ = atof(ppResults[i]->KSGED);
+		ppResults[i]->XGSGED_5564_ = atof(ppResults[i]->XGSGED_5564);
+		ppResults[i]->ZHED_ = atof(ppResults[i]->ZHED);
+
+		ppResults[i]->XGSGED_ = max(ppResults[i]->XGSGED_, ppResults[i]->SGED_961_);
+		ppResults[i]->XGSGED_ = max(ppResults[i]->XGSGED_, ppResults[i]->KSGED_);
+		ppResults[i]->XGSGED_ = max(ppResults[i]->XGSGED_, ppResults[i]->XGSGED_5564_);
+		ppResults[i]->XGSGED_ = max(ppResults[i]->XGSGED_, ppResults[i]->ZHED_);
+
+
+		ppResults[i]->Client = Client;
+	}
+}
+
+
+void CharTable2KSGXGCX(FieldInfo_STRUCT** ppFieldInfos, char** ppTable, KSGXGCX_STRUCT*** pppResults, void* Client)
+{
+	*pppResults = nullptr;
+	if (ppTable == nullptr)
+		return;
+
+	int count = GetRowCountTableBody(ppTable);
+	if (count <= 0)
+		return;
+
+	KSGXGCX_STRUCT** ppResults = new KSGXGCX_STRUCT*[count + 1]();
+	ppResults[count] = nullptr;
+	*pppResults = ppResults;
+
+	for (int i = 0; i < count; ++i)
+	{
+		ppResults[i] = new KSGXGCX_STRUCT();
+
+		int j = 0;
+		FieldInfo_STRUCT* pRow = ppFieldInfos[j];
+		while (pRow != 0)
+		{
+			char* t = ppTable[i * COL_EACH_ROW + j];
+			switch (pRow->FieldID)
+			{
+			case FIELD_ZQDM:
+				strcpy_s(ppResults[i]->ZQDM, t);
+				break;
+			case FIELD_ZQMC:
+				strcpy_s(ppResults[i]->ZQMC, t);
+				break;
+			case FIELD_FXJG:
+				strcpy_s(ppResults[i]->FXJG, t);
+				break;
+			case FIELD_ZDSL:
+				strcpy_s(ppResults[i]->ZDSL, t);
+				break;
+			case FIELD_ZGSL:
+				strcpy_s(ppResults[i]->ZGSL, t);
+				break;
+			case FIELD_WTSL:
+				strcpy_s(ppResults[i]->WTSL, t);
+				break;
+			case FIELD_WTRQ:
+				strcpy_s(ppResults[i]->WTRQ, t);
+				break;
+			case FIELD_JYSDM:
+				strcpy_s(ppResults[i]->JYSDM, t);
+				break;
+			case FIELD_JYSMC:
+				strcpy_s(ppResults[i]->JYSMC, t);
+				break;
+			case FIELD_CZSJ:
+				strcpy_s(ppResults[i]->CZSJ, t);
+				break;
+			case FIELD_JB:
+				strcpy_s(ppResults[i]->JB, t);
+				break;
+			case FIELD_BLXX:
+				strcpy_s(ppResults[i]->BLXX, t);
+				break;
+			case FIELD_SGSX:
+				strcpy_s(ppResults[i]->SGSX, t);
+				break;
+			case FIELD_WTJG:
+				strcpy_s(ppResults[i]->WTJG, t);
+				break;
+			case FIELD_ZHLB:
+				strcpy_s(ppResults[i]->ZHLB, t);
+				break;
+			}
+			++j;
+			pRow = ppFieldInfos[j];
+		}
+
+		ppResults[i]->FXJG_ = atof(ppResults[i]->FXJG);
+		ppResults[i]->ZDSL_ = atof(ppResults[i]->ZDSL);
+		ppResults[i]->ZGSL_ = atof(ppResults[i]->ZGSL);
+		ppResults[i]->WTSL_ = atof(ppResults[i]->WTSL);
+		ppResults[i]->WTRQ_ = atoi(ppResults[i]->WTRQ);
+		ppResults[i]->JYSDM_ = atoi(ppResults[i]->JYSDM);
+		ppResults[i]->SGSX_ = atof(ppResults[i]->SGSX);
+		ppResults[i]->WTJG_ = atof(ppResults[i]->WTJG);
+		ppResults[i]->ZHLB_ = atof(ppResults[i]->ZHLB);
+
+		ppResults[i]->ZGSL_ = max(ppResults[i]->ZGSL_, ppResults[i]->SGSX_);
+		ppResults[i]->FXJG_ = max(ppResults[i]->FXJG_, ppResults[i]->WTJG_);
+		ppResults[i]->JYSDM_ = max(ppResults[i]->JYSDM_, ppResults[i]->ZHLB_);
+
+		ppResults[i]->Client = Client;
+	}
+}
+
+void CharTable2HQ(FieldInfo_STRUCT** ppFieldInfos, char** ppTable, HQ_STRUCT*** pppResults, void* Client)
+{
+	*pppResults = nullptr;
+	if (ppTable == nullptr)
+		return;
+
+	int count = GetRowCountTableBody(ppTable);
+	if (count <= 0)
+		return;
+
+	HQ_STRUCT** ppResults = new HQ_STRUCT*[count + 1]();
+	ppResults[count] = nullptr;
+	*pppResults = ppResults;
+
+	for (int i = 0; i < count; ++i)
+	{
+		ppResults[i] = new HQ_STRUCT();
+
+		int j = 0;
+		FieldInfo_STRUCT* pRow = ppFieldInfos[j];
+		while (pRow != 0)
+		{
+			char* t = ppTable[i * COL_EACH_ROW + j];
+			switch (pRow->FieldID)
+			{
+			case FIELD_ZQDM:
+				strcpy_s(ppResults[i]->ZQDM, t);
+				break;
+			case FIELD_ZQMC:
+				strcpy_s(ppResults[i]->ZQMC, t);
+				break;
+			case FIELD_ZSJ:
+				strcpy_s(ppResults[i]->ZSJ, t);
+				break;
+			case FIELD_JKJ:
+				strcpy_s(ppResults[i]->JKJ, t);
+				break;
+			case FIELD_GZLX:
+				strcpy_s(ppResults[i]->GZLX, t);
+				break;
+			case FIELD_DQJ:
+				strcpy_s(ppResults[i]->DQJ, t);
+				break;
+			case FIELD_BID_PRICE_1:
+				strcpy_s(ppResults[i]->BidPrice1, t);
+				break;
+			case FIELD_BID_PRICE_2:
+				strcpy_s(ppResults[i]->BidPrice2, t);
+				break;
+			case FIELD_BID_PRICE_3:
+				strcpy_s(ppResults[i]->BidPrice3, t);
+				break;
+			case FIELD_BID_PRICE_4:
+				strcpy_s(ppResults[i]->BidPrice4, t);
+				break;
+			case FIELD_BID_PRICE_5:
+				strcpy_s(ppResults[i]->BidPrice5, t);
+				break;
+			case FIELD_BID_SIZE_1:
+				strcpy_s(ppResults[i]->BidSize1, t);
+				break;
+			case FIELD_BID_SIZE_2:
+				strcpy_s(ppResults[i]->BidSize2, t);
+				break;
+			case FIELD_BID_SIZE_3:
+				strcpy_s(ppResults[i]->BidSize3, t);
+				break;
+			case FIELD_BID_SIZE_4:
+				strcpy_s(ppResults[i]->BidSize4, t);
+				break;
+			case FIELD_BID_SIZE_5:
+				strcpy_s(ppResults[i]->BidSize5, t);
+				break;
+			case FIELD_ASK_PRICE_1:
+				strcpy_s(ppResults[i]->AskPrice1, t);
+				break;
+			case FIELD_ASK_PRICE_2:
+				strcpy_s(ppResults[i]->AskPrice2, t);
+				break;
+			case FIELD_ASK_PRICE_3:
+				strcpy_s(ppResults[i]->AskPrice3, t);
+				break;
+			case FIELD_ASK_PRICE_4:
+				strcpy_s(ppResults[i]->AskPrice4, t);
+				break;
+			case FIELD_ASK_PRICE_5:
+				strcpy_s(ppResults[i]->AskPrice5, t);
+				break;
+			case FIELD_ASK_SIZE_1:
+				strcpy_s(ppResults[i]->AskSize1, t);
+				break;
+			case FIELD_ASK_SIZE_2:
+				strcpy_s(ppResults[i]->AskSize2, t);
+				break;
+			case FIELD_ASK_SIZE_3:
+				strcpy_s(ppResults[i]->AskSize3, t);
+				break;
+			case FIELD_ASK_SIZE_4:
+				strcpy_s(ppResults[i]->AskSize4, t);
+				break;
+			case FIELD_ASK_SIZE_5:
+				strcpy_s(ppResults[i]->AskSize5, t);
+				break;
+			case FIELD_JYSDM:
+				strcpy_s(ppResults[i]->JYSDM, t);
+				break;
+			case FIELD_ZXJYGS:
+				strcpy_s(ppResults[i]->ZXJYGS, t);
+				break;
+			case FIELD_ZXMRBDJW:
+				strcpy_s(ppResults[i]->ZXMRBDJW, t);
+				break;
+			case FIELD_ZXMCBDJW:
+				strcpy_s(ppResults[i]->ZXMCBDJW, t);
+				break;
+			case FIELD_ZHLB:
+				strcpy_s(ppResults[i]->ZHLB, t);
+				break;
+			case FIELD_BZ:
+				strcpy_s(ppResults[i]->BZ, t);
+				break;
+			case FIELD_GZBS:
+				strcpy_s(ppResults[i]->GZBS, t);
+				break;
+			case FIELD_ZTJG:
+				strcpy_s(ppResults[i]->ZTJG, t);
+				break;
+			case FIELD_DTJG:
+				strcpy_s(ppResults[i]->DTJG, t);
+				break;
+			case FIELD_BLXX:
+				strcpy_s(ppResults[i]->BLXX, t);
+				break;
+			}
+			++j;
+			pRow = ppFieldInfos[j];
+		}
+
+		ppResults[i]->ZSJ_ = atof(ppResults[i]->ZSJ);
+		ppResults[i]->JKJ_ = atof(ppResults[i]->JKJ);
+		ppResults[i]->GZLX_ = atof(ppResults[i]->GZLX);
+		ppResults[i]->DQJ_ = atof(ppResults[i]->DQJ);
+		ppResults[i]->BidPrice1_ = atof(ppResults[i]->BidPrice1);
+		ppResults[i]->BidPrice2_ = atof(ppResults[i]->BidPrice2);
+		ppResults[i]->BidPrice3_ = atof(ppResults[i]->BidPrice3);
+		ppResults[i]->BidPrice4_ = atof(ppResults[i]->BidPrice4);
+		ppResults[i]->BidPrice5_ = atof(ppResults[i]->BidPrice5);
+		ppResults[i]->AskPrice1_ = atof(ppResults[i]->AskPrice1);
+		ppResults[i]->AskPrice2_ = atof(ppResults[i]->AskPrice2);
+		ppResults[i]->AskPrice3_ = atof(ppResults[i]->AskPrice3);
+		ppResults[i]->AskPrice4_ = atof(ppResults[i]->AskPrice4);
+		ppResults[i]->AskPrice5_ = atof(ppResults[i]->AskPrice5);
+		ppResults[i]->BidSize1_ = atoi(ppResults[i]->BidSize1);
+		ppResults[i]->BidSize2_ = atoi(ppResults[i]->BidSize2);
+		ppResults[i]->BidSize3_ = atoi(ppResults[i]->BidSize3);
+		ppResults[i]->BidSize4_ = atoi(ppResults[i]->BidSize4);
+		ppResults[i]->BidSize5_ = atoi(ppResults[i]->BidSize5);
+		ppResults[i]->AskSize1_ = atoi(ppResults[i]->AskSize1);
+		ppResults[i]->AskSize2_ = atoi(ppResults[i]->AskSize2);
+		ppResults[i]->AskSize3_ = atoi(ppResults[i]->AskSize3);
+		ppResults[i]->AskSize4_ = atoi(ppResults[i]->AskSize4);
+		ppResults[i]->AskSize5_ = atoi(ppResults[i]->AskSize5);
+
+		ppResults[i]->ZXJYGS_ = atoi(ppResults[i]->ZXJYGS);
+		ppResults[i]->ZXMRBDJW_ = atof(ppResults[i]->ZXMRBDJW);
+		ppResults[i]->ZXMCBDJW_ = atof(ppResults[i]->ZXMCBDJW);
+		ppResults[i]->ZTJG_ = atof(ppResults[i]->ZTJG);
+		ppResults[i]->DTJG_ = atof(ppResults[i]->DTJG);
+
+		ppResults[i]->Client = Client;
+	}
+}
+
+//void CharTable2XGPHCX(FieldInfo_STRUCT** ppFieldInfos, char** ppTable, XGPHCX_STRUCT*** pppResults, void* Client)
+//{
+//	*pppResults = nullptr;
+//	if (ppTable == nullptr)
+//		return;
+//
+//	int count = GetRowCountTableBody(ppTable);
+//	if (count <= 0)
+//		return;
+//
+//	XGPHCX_STRUCT** ppResults = new XGPHCX_STRUCT*[count + 1]();
+//	ppResults[count] = nullptr;
+//	*pppResults = ppResults;
+//
+//	for (int i = 0; i < count; ++i)
+//	{
+//		ppResults[i] = new XGPHCX_STRUCT();
+//
+//		int j = 0;
+//		FieldInfo_STRUCT* pRow = ppFieldInfos[j];
+//		while (pRow != 0)
+//		{
+//			char* t = ppTable[i * COL_EACH_ROW + j];
+//			switch (pRow->FieldID)
+//			{
+//			case FIELD_PHRQ:
+//				strcpy_s(ppResults[i]->PHRQ, t);
+//				break;
+//			case FIELD_ZQDM:
+//				strcpy_s(ppResults[i]->ZQDM, t);
+//				break;
+//			case FIELD_ZQMC:
+//				strcpy_s(ppResults[i]->ZQMC, t);
+//				break;
+//			case FIELD_QSPH:
+//				strcpy_s(ppResults[i]->QSPH, t);
+//				break;
+//			case FIELD_PHSL:
+//				strcpy_s(ppResults[i]->PHSL, t);
+//				break;
+//			case FIELD_ZHLB:
+//				strcpy_s(ppResults[i]->ZHLB, t);
+//				break;
+//			case FIELD_BLXX:
+//				strcpy_s(ppResults[i]->BLXX, t);
+//				break;
+//			}
+//			++j;
+//			pRow = ppFieldInfos[j];
+//		}
+//
+//		ppResults[i]->PHRQ_ = atoi(ppResults[i]->PHRQ);
+//		ppResults[i]->QSPH_ = atoi(ppResults[i]->QSPH);
+//		ppResults[i]->PHSL_ = atoi(ppResults[i]->PHSL);
+//		ppResults[i]->ZHLB_ = atoi(ppResults[i]->ZHLB);
+//
+//		ppResults[i]->Client = Client;
+//	}
+//}
 
 #else
 

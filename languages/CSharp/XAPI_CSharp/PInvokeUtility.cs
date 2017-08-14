@@ -72,6 +72,7 @@ namespace XAPI
             cls.SettlementPrice = obj.SettlementPrice;
             cls.UpperLimitPrice = obj.UpperLimitPrice;
             cls.LowerLimitPrice = obj.LowerLimitPrice;
+            cls.PreClosePrice = obj.PreClosePrice;
             cls.PreSettlementPrice = obj.PreSettlementPrice;
             cls.PreOpenInterest = obj.PreOpenInterest;
             cls.TradingPhase = obj.TradingPhase;
@@ -100,9 +101,11 @@ namespace XAPI
 
         public static SettlementInfoClass GetSettlementInfoClass(IntPtr ptr)
         {
-            SettlementInfoField obj = (SettlementInfoField)Marshal.PtrToStructure(ptr, typeof(SettlementInfoField));
-
             SettlementInfoClass cls = new SettlementInfoClass();
+            if (ptr == IntPtr.Zero)
+                return cls;
+
+            SettlementInfoField obj = (SettlementInfoField)Marshal.PtrToStructure(ptr, typeof(SettlementInfoField));
 
             int size = Marshal.SizeOf(typeof (SettlementInfoField));
             IntPtr pContent = new IntPtr(ptr.ToInt64() + size);

@@ -31,11 +31,39 @@ void CreateID(char* pOut, char* pDate, char*pZh, char* wtbh)
 	}
 }
 
+// 解决创建与删除不在同一dll的问题
+void DeleteStructs(void*** pppStructs, CMsgQueue* pQueue)
+{
+	if (pppStructs == nullptr)
+		return;
+
+	if (*pppStructs == nullptr)
+		return;
+
+	void** ppStructs = *pppStructs;
+
+	int i = 0;
+	while (ppStructs[i] != 0)
+	{
+		delete[] ppStructs[i];
+		//pQueue->delete_block(ppStructs[i]);
+		ppStructs[i] = nullptr;
+
+		++i;
+	}
+
+	delete[] ppStructs;
+	//pQueue->delete_block(ppStructs);
+	*pppStructs = nullptr;
+}
+
 CSingleUser::CSingleUser(CTraderApi* pApi)
 {
 	m_pApi = pApi;
 	m_pClient = nullptr;
 	memset(m_UserID, 0, sizeof(m_UserID));
+
+	m_ConnectionStatus = ConnectionStatus::ConnectionStatus_Uninitialized;
 }
 
 
@@ -53,11 +81,14 @@ void CSingleUser::OutputQueryTime(time_t t, double db, const char* szSource)
 	int len = strlen(pField->Message);
 	pField->Message[len - 1] = 0;
 
-	m_msgQueue->Input_NoCopy(ResponeType::ResponeType_OnLog, m_msgQueue, m_pClass, true, 0, pField, sizeof(LogField), nullptr, 0, nullptr, 0);
+	m_msgQueue->Input_NoCopy(ResponseType::ResponseType_OnLog, m_msgQueue, m_pClass, true, 0, pField, sizeof(LogField), nullptr, 0, nullptr, 0);
 }
 
 void CSingleUser::CheckThenQueryOrder(time_t _now)
 {
+	if (m_ConnectionStatus != ConnectionStatus::ConnectionStatus_Done)
+		return;
+
 	if (_now > m_QueryOrderTime)
 	{
 		double _queryTime = QUERY_TIME_MAX;
@@ -70,6 +101,9 @@ void CSingleUser::CheckThenQueryOrder(time_t _now)
 
 void CSingleUser::CheckThenQueryTrade(time_t _now)
 {
+	if (m_ConnectionStatus != ConnectionStatus::ConnectionStatus_Done)
+		return;
+
 	if (_now > m_QueryTradeTime)
 	{
 		double _queryTime = QUERY_TIME_MAX;
@@ -103,7 +137,7 @@ void CSingleUser::ReqQryTrade()
 	m_pApi->ReqQuery(&query);
 }
 
-int CSingleUser::OnRespone_ReqQryOrder(CTdxApi* pApi, RequestRespone_STRUCT* pRespone)
+int CSingleUser::OnResponse_ReqQryOrder(CTdxApi* pApi, RequestResponse_STRUCT* pRespone)
 {
 	ReqQueryData_STRUCT* pQuery = (ReqQueryData_STRUCT*)pRespone->pContent;
 
@@ -115,11 +149,11 @@ int CSingleUser::OnRespone_ReqQryOrder(CTdxApi* pApi, RequestRespone_STRUCT* pRe
 		strcpy(pField->Text, pRespone->pErr->ErrInfo);
 		strcpy(pField->Source, "OnRespone_ReqQryOrder");
 
-		m_msgQueue->Input_NoCopy(ResponeType::ResponeType_OnRtnError, m_msgQueue, m_pClass, 0, 0, pField, sizeof(ErrorField), nullptr, 0, nullptr, 0);
+		m_msgQueue->Input_NoCopy(ResponseType::ResponseType_OnRtnError, m_msgQueue, m_pClass, 0, 0, pField, sizeof(ErrorField), nullptr, 0, nullptr, 0);
 	}
 
 	WTLB_STRUCT** ppRS = nullptr;
-	CharTable2WTLB(pRespone->ppFieldInfo, pRespone->ppResults, &ppRS, pRespone->Client);
+	CharTable2WTLB(pRespone->ppFieldInfo, pRespone->ppResults, &ppRS, pRespone->Client, m_msgQueue);
 
 	// 操作前清空，按说之前已经清空过一次了
 	m_NewOrderList.clear();
@@ -164,6 +198,15 @@ int CSingleUser::OnRespone_ReqQryOrder(CTdxApi* pApi, RequestRespone_STRUCT* pRe
 					WTLB_STRUCT* pWTField = (WTLB_STRUCT*)m_msgQueue->new_block(sizeof(WTLB_STRUCT));
 					memcpy(pWTField, ppRS[i], sizeof(WTLB_STRUCT));
 					m_pApi->m_id_api_order.insert(pair<string, WTLB_STRUCT*>(pField->ID, pWTField));
+				}
+				else
+				{
+					// 如果已经存在，最好还是更新部分,要更新哪些地方呢？参考OnRespone_ReqOrderInsert部分，看哪些没有默认填写
+					WTLB_STRUCT* pWTField = (WTLB_STRUCT*)it->second;
+					if (strlen(pWTField->ZQMC) == 0)
+					{
+						memcpy(pWTField, ppRS[i], sizeof(WTLB_STRUCT));
+					}
 				}
 			}
 			++i;
@@ -217,7 +260,7 @@ int CSingleUser::OnRespone_ReqQryOrder(CTdxApi* pApi, RequestRespone_STRUCT* pRe
 				memcpy(pField_, pField, sizeof(OrderField));
 			}
 
-			m_msgQueue->Input_Copy(ResponeType::ResponeType_OnRtnOrder, m_msgQueue, m_pClass, 0, 0, pField, sizeof(OrderField), nullptr, 0, nullptr, 0);
+			m_msgQueue->Input_Copy(ResponseType::ResponseType_OnRtnOrder, m_msgQueue, m_pClass, 0, 0, pField, sizeof(OrderField), nullptr, 0, nullptr, 0);
 		}
 
 		// 前一个可能为空，移动到下一个时需要注意
@@ -236,7 +279,7 @@ int CSingleUser::OnRespone_ReqQryOrder(CTdxApi* pApi, RequestRespone_STRUCT* pRe
 		for (list<OrderField*>::iterator it = m_NewOrderList.begin(); it != m_NewOrderList.end(); ++it)
 		{
 			OrderField* pField = *it;
-			m_msgQueue->Input_Copy(ResponeType::ResponeType_OnRspQryOrder, m_msgQueue, m_pClass, i == count - 1, 0, pField, sizeof(OrderField), nullptr, 0, nullptr, 0);
+			m_msgQueue->Input_Copy(ResponseType::ResponseType_OnRspQryOrder, m_msgQueue, m_pClass, i == count - 1, 0, pField, sizeof(OrderField), nullptr, 0, nullptr, 0);
 			++i;
 		}
 	}
@@ -304,6 +347,8 @@ int CSingleUser::OnRespone_ReqQryOrder(CTdxApi* pApi, RequestRespone_STRUCT* pRe
 		OutputQueryTime(m_QueryTradeTime, _queryTime, "NextQueryTrade_QueryOrder");
 	}
 
+	DeleteStructs((void***)&ppRS, m_msgQueue);
+
 	return 0;
 }
 
@@ -356,7 +401,7 @@ void TradeList2TradeMap(list<TradeField*> &tradeList, unordered_map<string, Trad
 	}
 }
 
-int CSingleUser::OnRespone_ReqQryTrade(CTdxApi* pApi, RequestRespone_STRUCT* pRespone)
+int CSingleUser::OnResponse_ReqQryTrade(CTdxApi* pApi, RequestResponse_STRUCT* pRespone)
 {
 	ReqQueryData_STRUCT* pQuery = (ReqQueryData_STRUCT*)pRespone->pContent;
 
@@ -368,11 +413,11 @@ int CSingleUser::OnRespone_ReqQryTrade(CTdxApi* pApi, RequestRespone_STRUCT* pRe
 		strcpy(pField->Text, pRespone->pErr->ErrInfo);
 		strcpy(pField->Source, "OnRespone_ReqQryTrade");
 
-		m_msgQueue->Input_NoCopy(ResponeType::ResponeType_OnRtnError, m_msgQueue, m_pClass, 0, 0, pField, sizeof(ErrorField), nullptr, 0, nullptr, 0);
+		m_msgQueue->Input_NoCopy(ResponseType::ResponseType_OnRtnError, m_msgQueue, m_pClass, 0, 0, pField, sizeof(ErrorField), nullptr, 0, nullptr, 0);
 	}
 
 	CJLB_STRUCT** ppRS = nullptr;
-	CharTable2CJLB(pRespone->ppFieldInfo, pRespone->ppResults, &ppRS, pRespone->Client);
+	CharTable2CJLB(pRespone->ppFieldInfo, pRespone->ppResults, &ppRS, pRespone->Client, m_msgQueue);
 
 	// 操作前清空，按说之前已经清空过一次了
 	m_NewTradeList.clear();
@@ -408,6 +453,7 @@ int CSingleUser::OnRespone_ReqQryTrade(CTdxApi* pApi, RequestRespone_STRUCT* pRe
 			TradeField* pField = (TradeField*)m_msgQueue->new_block(sizeof(TradeField));
 
 			CJLB_2_TradeField(ppRS[i], pField);
+			CreateID(pField->ID, ppRS[i]->CJRQ, ppRS[i]->GDDM, ppRS[i]->WTBH);
 			pField->Date = ppRS[i]->CJRQ_ == 0 ? Today(0) : ppRS[i]->CJRQ_;//日期为0，重新赋值
 
 			if (m_TradeListReverse)
@@ -506,7 +552,7 @@ int CSingleUser::OnRespone_ReqQryTrade(CTdxApi* pApi, RequestRespone_STRUCT* pRe
 		for (list<TradeField*>::iterator it = m_NewTradeList.begin(); it != m_NewTradeList.end(); ++it)
 		{
 			TradeField* pField = *it;
-			m_msgQueue->Input_Copy(ResponeType::ResponeType_OnRspQryTrade, m_msgQueue, m_pClass, i == count - 1, 0, pField, sizeof(TradeField), nullptr, 0, nullptr, 0);
+			m_msgQueue->Input_Copy(ResponseType::ResponseType_OnRspQryTrade, m_msgQueue, m_pClass, i == count - 1, 0, pField, sizeof(TradeField), nullptr, 0, nullptr, 0);
 			++i;
 		}
 	}
@@ -523,6 +569,8 @@ int CSingleUser::OnRespone_ReqQryTrade(CTdxApi* pApi, RequestRespone_STRUCT* pRe
 	m_OldTradeList = m_NewTradeList;
 	m_NewTradeList.clear();
 
+	DeleteStructs((void***)&ppRS, m_msgQueue);
+
 	return 0;
 }
 
@@ -535,7 +583,7 @@ void CSingleUser::CompareTradeMapAndEmit(unordered_map<string, TradeField*> &old
 		if (it2 == oldMap.end())
 		{
 			// 没找到,是新单
-			m_msgQueue->Input_Copy(ResponeType::ResponeType_OnRtnTrade, m_msgQueue, m_pClass, 0, 0, pNewField, sizeof(TradeField), nullptr, 0, nullptr, 0);
+			m_msgQueue->Input_Copy(ResponseType::ResponseType_OnRtnTrade, m_msgQueue, m_pClass, 0, 0, pNewField, sizeof(TradeField), nullptr, 0, nullptr, 0);
 		}
 		else
 		{
@@ -547,7 +595,7 @@ void CSingleUser::CompareTradeMapAndEmit(unordered_map<string, TradeField*> &old
 				TradeField* pField = new TradeField;
 				memcpy(pField, pNewField, sizeof(TradeField));
 				pField->Qty = Qty;
-				m_msgQueue->Input_Copy(ResponeType::ResponeType_OnRtnTrade, m_msgQueue, m_pClass, 0, 0, pNewField, sizeof(TradeField), nullptr, 0, nullptr, 0);
+				m_msgQueue->Input_Copy(ResponseType::ResponseType_OnRtnTrade, m_msgQueue, m_pClass, 0, 0, pNewField, sizeof(TradeField), nullptr, 0, nullptr, 0);
 				delete[] pField;
 			}
 		}
@@ -579,7 +627,7 @@ void CSingleUser::CompareTradeListAndEmit(list<TradeField*> &oldList, list<Trade
 
 		if (bUpdate)
 		{
-			m_msgQueue->Input_Copy(ResponeType::ResponeType_OnRtnTrade, m_msgQueue, m_pClass, 0, 0, pField, sizeof(TradeField), nullptr, 0, nullptr, 0);
+			m_msgQueue->Input_Copy(ResponseType::ResponseType_OnRtnTrade, m_msgQueue, m_pClass, 0, 0, pField, sizeof(TradeField), nullptr, 0, nullptr, 0);
 		}
 
 		// 前一个可能为空，移动到下一个时需要注意
@@ -593,7 +641,7 @@ void CSingleUser::CompareTradeListAndEmit(list<TradeField*> &oldList, list<Trade
 }
 
 
-int CSingleUser::OnRespone_ReqUserLogin(CTdxApi* pApi, RequestRespone_STRUCT* pRespone)
+int CSingleUser::OnResponse_ReqUserLogin(CTdxApi* pApi, RequestResponse_STRUCT* pRespone)
 {
 	if (pRespone->pErr)
 	{
@@ -602,20 +650,20 @@ int CSingleUser::OnRespone_ReqUserLogin(CTdxApi* pApi, RequestRespone_STRUCT* pR
 		pField->RawErrorID = pRespone->pErr->ErrCode;
 		strcpy(pField->Text, pRespone->pErr->ErrInfo);
 
-		m_msgQueue->Input_NoCopy(ResponeType::ResponeType_OnConnectionStatus, m_msgQueue, m_pClass, ConnectionStatus::ConnectionStatus_Disconnected, 0, pField, sizeof(RspUserLoginField), nullptr, 0, nullptr, 0);
-
+		m_msgQueue->Input_NoCopy(ResponseType::ResponseType_OnConnectionStatus, m_msgQueue, m_pClass, ConnectionStatus::ConnectionStatus_Disconnected, 0, pField, sizeof(RspUserLoginField), nullptr, 0, nullptr, 0);
+		m_ConnectionStatus = ConnectionStatus::ConnectionStatus_Disconnected;
 		m_pApi->RemoveUser((CSingleUser*)pRespone->pUserData_Public);
 	}
 	else
 	{
-		m_msgQueue->Input_NoCopy(ResponeType::ResponeType_OnConnectionStatus, m_msgQueue, m_pClass, ConnectionStatus::ConnectionStatus_Logined, 0, nullptr, 0, nullptr, 0, nullptr, 0);
-
-		m_pApi->StartQueryThread();
+		m_msgQueue->Input_NoCopy(ResponseType::ResponseType_OnConnectionStatus, m_msgQueue, m_pClass, ConnectionStatus::ConnectionStatus_Logined, 0, nullptr, 0, nullptr, 0, nullptr, 0);
+		m_ConnectionStatus = ConnectionStatus::ConnectionStatus_Logined;
 	}
 	
 	// 查询股东列表，华泰证券可能一开始查会返回非知请求[1122]
 	GDLB_STRUCT** ppRS = nullptr;
-	CharTable2Login(pRespone->ppResults, &ppRS, pRespone->Client);
+	char CPZH[32] = { 0 };
+	CharTable2Login(pRespone->ppFieldInfo, pRespone->ppResults, &ppRS, pRespone->Client, nullptr, CPZH);
 
 	int count = GetCountStructs((void**)ppRS);
 
@@ -627,16 +675,20 @@ int CSingleUser::OnRespone_ReqUserLogin(CTdxApi* pApi, RequestRespone_STRUCT* pR
 
 			GDLB_2_InvestorField(ppRS[i], pField);
 
-			m_msgQueue->Input_NoCopy(ResponeType::ResponeType_OnRspQryInvestor, m_msgQueue, m_pClass, i == count - 1, 0, pField, sizeof(InvestorField), nullptr, 0, nullptr, 0);
+			m_msgQueue->Input_NoCopy(ResponseType::ResponseType_OnRspQryInvestor, m_msgQueue, m_pClass, i == count - 1, 0, pField, sizeof(InvestorField), nullptr, 0, nullptr, 0);
 		}
 
-		m_msgQueue->Input_NoCopy(ResponeType::ResponeType_OnConnectionStatus, m_msgQueue, m_pClass, ConnectionStatus::ConnectionStatus_Done, 0, nullptr, 0, nullptr, 0, nullptr, 0);
+		m_msgQueue->Input_NoCopy(ResponseType::ResponseType_OnConnectionStatus, m_msgQueue, m_pClass, ConnectionStatus::ConnectionStatus_Done, 0, nullptr, 0, nullptr, 0, nullptr, 0);
+		m_ConnectionStatus = ConnectionStatus::ConnectionStatus_Done;
 	}
+
+	// 这是由TdxApi.dll创建的
+	DeleteStructs((void***)&ppRS);
 
 	return 0;
 }
 
-int CSingleUser::OnRespone_ReqQryInvestor(CTdxApi* pApi, RequestRespone_STRUCT* pRespone)
+int CSingleUser::OnResponse_ReqQryInvestor(CTdxApi* pApi, RequestResponse_STRUCT* pRespone)
 {
 	if (pRespone->pErr)
 	{
@@ -646,7 +698,7 @@ int CSingleUser::OnRespone_ReqQryInvestor(CTdxApi* pApi, RequestRespone_STRUCT* 
 		strcpy(pField->Text, pRespone->pErr->ErrInfo);
 		strcpy(pField->Source, "OnRespone_ReqQryInvestor");
 
-		m_msgQueue->Input_NoCopy(ResponeType::ResponeType_OnRtnError, m_msgQueue, m_pClass, 0, 0, pField, sizeof(ErrorField), nullptr, 0, nullptr, 0);
+		m_msgQueue->Input_NoCopy(ResponseType::ResponseType_OnRtnError, m_msgQueue, m_pClass, 0, 0, pField, sizeof(ErrorField), nullptr, 0, nullptr, 0);
 	}
 
 	GDLB_STRUCT** ppRS = nullptr;
@@ -662,16 +714,18 @@ int CSingleUser::OnRespone_ReqQryInvestor(CTdxApi* pApi, RequestRespone_STRUCT* 
 
 			GDLB_2_InvestorField(ppRS[i], pField);
 
-			m_msgQueue->Input_NoCopy(ResponeType::ResponeType_OnRspQryInvestor, m_msgQueue, m_pClass, i == count - 1, 0, pField, sizeof(InvestorField), nullptr, 0, nullptr, 0);
+			m_msgQueue->Input_NoCopy(ResponseType::ResponseType_OnRspQryInvestor, m_msgQueue, m_pClass, i == count - 1, 0, pField, sizeof(InvestorField), nullptr, 0, nullptr, 0);
 		}
 
-		m_msgQueue->Input_NoCopy(ResponeType::ResponeType_OnConnectionStatus, m_msgQueue, m_pClass, ConnectionStatus::ConnectionStatus_Done, 0, nullptr, 0, nullptr, 0, nullptr, 0);
+		m_msgQueue->Input_NoCopy(ResponseType::ResponseType_OnConnectionStatus, m_msgQueue, m_pClass, ConnectionStatus::ConnectionStatus_Done, 0, nullptr, 0, nullptr, 0, nullptr, 0);
 	}
+
+	DeleteStructs((void***)&ppRS);
 
 	return 0;
 }
 
-int CSingleUser::OnRespone_ReqQryTradingAccount(CTdxApi* pApi, RequestRespone_STRUCT* pRespone)
+int CSingleUser::OnResponse_ReqQryTradingAccount(CTdxApi* pApi, RequestResponse_STRUCT* pRespone)
 {
 	if (pRespone->pErr)
 	{
@@ -681,7 +735,7 @@ int CSingleUser::OnRespone_ReqQryTradingAccount(CTdxApi* pApi, RequestRespone_ST
 		strcpy(pField->Text, pRespone->pErr->ErrInfo);
 		strcpy(pField->Source, "OnRespone_ReqQryTradingAccount");
 
-		m_msgQueue->Input_NoCopy(ResponeType::ResponeType_OnRtnError, m_msgQueue, m_pClass, 0, 0, pField, sizeof(ErrorField), nullptr, 0, nullptr, 0);
+		m_msgQueue->Input_NoCopy(ResponseType::ResponseType_OnRtnError, m_msgQueue, m_pClass, 0, 0, pField, sizeof(ErrorField), nullptr, 0, nullptr, 0);
 	}
 
 	//if (pRespone->ppResults == nullptr)
@@ -691,7 +745,7 @@ int CSingleUser::OnRespone_ReqQryTradingAccount(CTdxApi* pApi, RequestRespone_ST
 	//}
 
 	ZJYE_STRUCT** ppRS = nullptr;
-	CharTable2ZJYE(pRespone->ppFieldInfo, pRespone->ppResults, &ppRS, pRespone->Client);
+	CharTable2ZJYE(pRespone->ppFieldInfo, pRespone->ppResults, &ppRS, pRespone->Client, m_msgQueue);
 
 	int count = GetCountStructs((void**)ppRS);
 	for (int i = 0; i < count; ++i)
@@ -707,13 +761,15 @@ int CSingleUser::OnRespone_ReqQryTradingAccount(CTdxApi* pApi, RequestRespone_ST
 		//	strcpy(pField->AccountID, m_pApi->GetAccount());
 		//}
 
-		m_msgQueue->Input_NoCopy(ResponeType::ResponeType_OnRspQryTradingAccount, m_msgQueue, m_pClass, i == count - 1, 0, pField, sizeof(AccountField), nullptr, 0, nullptr, 0);
+		m_msgQueue->Input_NoCopy(ResponseType::ResponseType_OnRspQryTradingAccount, m_msgQueue, m_pClass, i == count - 1, 0, pField, sizeof(AccountField), nullptr, 0, nullptr, 0);
 	}
+
+	DeleteStructs((void***)&ppRS, m_msgQueue);
 
 	return 0;
 }
 
-int CSingleUser::OnRespone_ReqQryInvestorPosition(CTdxApi* pApi, RequestRespone_STRUCT* pRespone)
+int CSingleUser::OnResponse_ReqQryInvestorPosition(CTdxApi* pApi, RequestResponse_STRUCT* pRespone)
 {
 	if (pRespone->pErr)
 	{
@@ -723,11 +779,11 @@ int CSingleUser::OnRespone_ReqQryInvestorPosition(CTdxApi* pApi, RequestRespone_
 		strcpy(pField->Text, pRespone->pErr->ErrInfo);
 		strcpy(pField->Source, "OnRespone_ReqQryInvestorPosition");
 
-		m_msgQueue->Input_NoCopy(ResponeType::ResponeType_OnRtnError, m_msgQueue, m_pClass, 0, 0, pField, sizeof(ErrorField), nullptr, 0, nullptr, 0);
+		m_msgQueue->Input_NoCopy(ResponseType::ResponseType_OnRtnError, m_msgQueue, m_pClass, 0, 0, pField, sizeof(ErrorField), nullptr, 0, nullptr, 0);
 	}
 
 	GFLB_STRUCT** ppRS = nullptr;
-	CharTable2GFLB(pRespone->ppFieldInfo, pRespone->ppResults, &ppRS, pRespone->Client);
+	CharTable2GFLB(pRespone->ppFieldInfo, pRespone->ppResults, &ppRS, pRespone->Client, m_msgQueue);
 
 	int count = GetCountStructs((void**)ppRS);
 	for (int i = 0; i < count; ++i)
@@ -737,22 +793,27 @@ int CSingleUser::OnRespone_ReqQryInvestorPosition(CTdxApi* pApi, RequestRespone_
 		// 应当处理一下，可能一个账号对应的有多个，如信用账户
 		GFLB_2_PositionField(ppRS[i], pField);
 
-		m_msgQueue->Input_NoCopy(ResponeType::ResponeType_OnRspQryInvestorPosition, m_msgQueue, m_pClass, i == count - 1, 0, pField, sizeof(PositionField), nullptr, 0, nullptr, 0);
+		m_msgQueue->Input_NoCopy(ResponseType::ResponseType_OnRspQryInvestorPosition, m_msgQueue, m_pClass, i == count - 1, 0, pField, sizeof(PositionField), nullptr, 0, nullptr, 0);
 	}
+
+	DeleteStructs((void***)&ppRS, m_msgQueue);
 
 	return 0;
 }
 
-int CSingleUser::OnRespone_ReqOrderInsert(CTdxApi* pApi, RequestRespone_STRUCT* pRespone)
+int CSingleUser::OnResponse_ReqOrderInsert(CTdxApi* pApi, RequestResponse_STRUCT* pRespone)
 {
 	Order_STRUCT* pTdxOrder = (Order_STRUCT*)pRespone->pContent;
 	OrderField* pOrder = (OrderField*)pRespone->pUserData_Public2;
 
 	WTLB_STRUCT* pWTOrders = (WTLB_STRUCT*)m_msgQueue->new_block(sizeof(WTLB_STRUCT));
 	strcpy(pWTOrders->ZJZH, pTdxOrder->ZJZH);
+	strcpy(pWTOrders->ZHLB, pTdxOrder->ZHLB_);
+	strcpy(pWTOrders->ZQDM, pTdxOrder->ZQDM);
 	strcpy(pWTOrders->GDDM, pTdxOrder->GDDM);
 	strcpy(pWTOrders->WTBH, pTdxOrder->WTBH);
-	strcpy(pWTOrders->JYSDM, pTdxOrder->ZHLB_);
+	strcpy(pWTOrders->JYSDM, pTdxOrder->ZHLB_);// FIXME:交易所代码有什么办法搞到吗？
+
 	pWTOrders->Client = m_pClient;
 
 	m_pApi->m_id_api_order.insert(pair<string, WTLB_STRUCT*>(pOrder->LocalID, pWTOrders));
@@ -801,12 +862,12 @@ int CSingleUser::OnRespone_ReqOrderInsert(CTdxApi* pApi, RequestRespone_STRUCT* 
 		pField->Status = OrderStatus::OrderStatus_New;
 	}
 
-	m_msgQueue->Input_Copy(ResponeType::ResponeType_OnRtnOrder, m_msgQueue, m_pClass, 0, 0, pField, sizeof(OrderField), nullptr, 0, nullptr, 0);
+	m_msgQueue->Input_Copy(ResponseType::ResponseType_OnRtnOrder, m_msgQueue, m_pClass, 0, 0, pField, sizeof(OrderField), nullptr, 0, nullptr, 0);
 
 	return 0;
 }
 
-int CSingleUser::OnRespone_ReqOrderAction(CTdxApi* pApi, RequestRespone_STRUCT* pRespone)
+int CSingleUser::OnResponse_ReqOrderAction(CTdxApi* pApi, RequestResponse_STRUCT* pRespone)
 {
 	WTLB_STRUCT* pTdxOrder = (WTLB_STRUCT*)pRespone->pContent;
 	OrderField* pOrder = (OrderField*)pRespone->pUserData_Public2;
@@ -830,7 +891,7 @@ int CSingleUser::OnRespone_ReqOrderAction(CTdxApi* pApi, RequestRespone_STRUCT* 
 		//ppOrders[i]->Status = OrderStatus::Cancelled;
 	}
 
-	m_msgQueue->Input_Copy(ResponeType::ResponeType_OnRtnOrder, m_msgQueue, m_pClass, 0, 0, pOrder, sizeof(OrderField), nullptr, 0, nullptr, 0);
+	m_msgQueue->Input_Copy(ResponseType::ResponseType_OnRtnOrder, m_msgQueue, m_pClass, 0, 0, pOrder, sizeof(OrderField), nullptr, 0, nullptr, 0);
 
 	return 0;
 }

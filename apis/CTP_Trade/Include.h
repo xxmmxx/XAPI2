@@ -1,4 +1,4 @@
-// stdafx.h : include file for standard system include files,
+﻿// stdafx.h : include file for standard system include files,
 // or project specific include files that are used frequently, but
 // are changed infrequently
 //
@@ -14,9 +14,23 @@
 #include "../../include/CTP/ThostFtdcTraderApi.h"
 
 #ifdef _WIN64
-#pragma comment(lib, "../../include/CTP/win64/thosttraderapi.lib")
-#pragma comment(lib, "../../lib/Queue_x64.lib")
+	#pragma comment(lib, "../../include/CTP/win64/thosttraderapi.lib")
+	#ifdef _DEBUG
+	#pragma comment(lib, "../../lib/Queue_x64d.lib")
+	#else
+	#pragma comment(lib, "../../lib/Queue_x64.lib")
+	#endif
 #else
-#pragma comment(lib, "../../include/CTP/win32/thosttraderapi.lib")
-#pragma comment(lib, "../../lib/Queue_x86.lib")
+	#pragma comment(lib, "../../include/CTP/win32/thosttraderapi.lib")
+	#ifdef _DEBUG
+	#pragma comment(lib, "../../lib/Queue_x86d.lib")
+	#else
+	#pragma comment(lib, "../../lib/Queue_x86.lib")
+	#endif
 #endif
+
+// CTP有多个版本有些没有ExchangeID，而有些有
+//#define HAS_ExchangeID	1
+#undef HAS_ExchangeID
+// 飞鼠的Quote中没有交易所
+#define HAS_ExchangeID_Quote	1

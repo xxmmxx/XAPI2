@@ -1,4 +1,4 @@
-﻿using NLog;
+﻿//using NLog;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -11,11 +11,15 @@ namespace XAPI.Callback
     [ComVisible(false)]
     public class BaseApi : IDisposable
     {
-        public Logger Log;
+        // 没有必要专门引入一个库，但又很少用
+        //public Logger Log;
+        public object Log;
+
         protected Proxy proxy;
         protected IntPtr Handle = IntPtr.Zero;
         public string LibPath;
 
+        [CLSCompliant(false)]
         protected XCall _XRespone;
 
         public ServerInfoField Server;
@@ -201,6 +205,14 @@ namespace XAPI.Callback
 
         }
 
+        /// <summary>
+        /// 这个功能主要是给非.NET语言在调用时使用
+        /// </summary>
+        public void GCCollect()
+        {
+            System.GC.Collect();
+        }
+
         public void RegisterAndStart(IntPtr ptr1)
         {
             lock (this)
@@ -211,6 +223,7 @@ namespace XAPI.Callback
                 }
             }
         }
+
 
         public ApiType GetApiTypes
         {
@@ -252,25 +265,25 @@ namespace XAPI.Callback
         private IntPtr _OnRespone(byte type, IntPtr pApi1, IntPtr pApi2, double double1, double double2, IntPtr ptr1, int size1, IntPtr ptr2, int size2, IntPtr ptr3, int size3)
         {
             // 队列过来的消息，如何处理？
-            switch((ResponeType)type)
+            switch((ResponseType)type)
             {
-                case ResponeType.OnConnectionStatus:
+                case ResponseType.OnConnectionStatus:
                     _OnConnectionStatus(double1, ptr1,size1);
                     break;
-                case ResponeType.OnRtnError:
+                case ResponseType.OnRtnError:
                     _OnRtnError(ptr1);
                     break;
-                case ResponeType.OnLog:
+                case ResponseType.OnLog:
                     _OnLog(ptr1);
                     break;
                 default:
-                    return OnRespone(type, pApi1, pApi2, double1, double2, ptr1, size1, ptr2, size2, ptr3, size3);
+                    return OnResponse(type, pApi1, pApi2, double1, double2, ptr1, size1, ptr2, size2, ptr3, size3);
             }
 
             return IntPtr.Zero;
         }
 
-        protected virtual IntPtr OnRespone(byte type, IntPtr pApi1, IntPtr pApi2, double double1, double double2, IntPtr ptr1, int size1, IntPtr ptr2, int size2, IntPtr ptr3, int size3)
+        protected virtual IntPtr OnResponse(byte type, IntPtr pApi1, IntPtr pApi2, double double1, double double2, IntPtr ptr1, int size1, IntPtr ptr2, int size2, IntPtr ptr3, int size3)
         {
             return IntPtr.Zero;
         }

@@ -9,6 +9,11 @@
 // 37 期权
 // 40 沪港通
 
+//	603_交易类型
+#define JYLX_Creation			0	// ETF申购
+#define JYLX_Redemption			1	// ETF赎回
+#define MMBZ_ETF_Creation		JYLX_Creation	// ETF申购
+#define MMBZ_ETF_Redemption		JYLX_Redemption	// ETF赎回
 
 // 130_买卖标志
 // 下单时使用买卖标志来指定报单类型
@@ -20,15 +25,20 @@
 #define MMBZ_Sell_Cancel		4	// 撤卖，信达证券结果
 #define MMBZ_Merge				12	// 基金合并
 #define MMBZ_Split				13	// 基金分拆
+#define MMBZ_Buy_DBP			15	// 担保品买入
+#define MMBZ_Sell_DBP			16	// 担保品卖出
+#define MMBZ_Sell_RQ_ZRT		24	// 转融通融券卖出
+#define MMBZ_Buy_HQ_ZRT			34	// 转融通买券还券
+#define MMBZ_XQ_HQ_ZRT			36	// 转融通现券还券
 #define MMBZ_Buy_Market			67	// 市价买
 #define MMBZ_Sell_Market		68	// 市价卖
 #define MMBZ_Buy_RZ				69	// 融资买入
 #define MMBZ_Sell_RQ			70	// 融券卖出
 #define MMBZ_Buy_HQ				71	// 买券还券
-#define MMBZ_73					73	// 现券还券
-#define MMBZ_74					74	// 担保品划转
-#define MMBZ_75					75	// 现金还款
-#define MMBZ_76					76	// 卖券还款
+#define MMBZ_XQ_HQ				73	// 现券还券
+#define MMBZ_DBP_HZ				74	// 担保品划转
+#define MMBZ_XJ_HK				75	// 现金还款
+#define MMBZ_Sell_HK			76	// 卖券还款
 #define MMBZ_Creation			79	// 基金申购
 #define MMBZ_Redemption			80	// 基金赎回
 #define MMBZ_86					86	// 权证行权
@@ -38,19 +48,17 @@
 #define WTLB_Sell				REQUEST_WT*100+ MMBZ_Sell_Limit		// 卖出
 #define WTLB_Buy_Cancel			REQUEST_WT*100+ 2		// 撤买
 #define WTLB_Sell_Cancel		REQUEST_WT*100+ 3		// 撤卖
-#define WTLB_LOFCreation		REQUEST_WT*100+ 79		// 基金申购
-#define WTLB_LOFRedemption		REQUEST_WT*100+ 80		// 基金赎回
-#define WTLB_ETFCreation		REQUEST_ETF_SGSH*100+ MMBZ_Creation	// ETF申购
-#define WTLB_ETFRedemption		REQUEST_ETF_SGSH*100+ MMBZ_Redemption	// ETF赎回
+#define WTLB_LOFCreation		REQUEST_WT*100+ MMBZ_Creation		// 基金申购
+#define WTLB_LOFRedemption		REQUEST_WT*100+ MMBZ_Redemption		// 基金赎回
+#define WTLB_ETFCreation		REQUEST_ETF_SGSH*100+ MMBZ_ETF_Creation	// ETF申购
+#define WTLB_ETFRedemption		REQUEST_ETF_SGSH*100+ MMBZ_ETF_Redemption	// ETF赎回
 #define WTLB_Merge				REQUEST_WT*100+ MMBZ_Merge		// 合并
 #define WTLB_Split				REQUEST_WT*100+ MMBZ_Split		// 分拆
 
 #define MMBZ_CB_Conv	 		0	// 204下:可转债转股
 #define MMBZ_CB_Red				1	// 204下:债券回售
 
-//	603_交易类型
-#define JYLX_Creation			0	// ETF申购
-#define JYLX_Redemption			1	// ETF赎回
+
 
 
 // 5565_委托类别

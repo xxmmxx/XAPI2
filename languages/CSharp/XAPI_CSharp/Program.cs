@@ -57,7 +57,7 @@ namespace XAPI
 
         static void OnRspQrySettlementInfo(object sender, ref SettlementInfoClass settlementInfo, int size1, bool bIsLast)
         {
-
+            Console.WriteLine(settlementInfo.Content);
         }
 
         static void OnRtnOrder(object sender, ref OrderField order)
@@ -103,6 +103,8 @@ namespace XAPI
 
         static void Main(string[] args)
         {
+            // 注意：为了进行进程外COM技术的支持，项目已经修改了启动对象，
+            // 默认是从另一个Main中启动，如想测试此内容，请修改项目的属性，Application->Startup object
             int i;
             int iCount = args.Length;
 
@@ -115,11 +117,11 @@ namespace XAPI
             Console.WriteLine("Press [ENTER] to exit.");
             Console.ReadLine();
 
-            ////for (int i = 0; i < 10000; ++i)
-            //{
-            //    test_Tdx_Main(args);
-            //}
-            //Console.ReadKey();
+            //for (int i = 0; i < 10000; ++i)
+            {
+                test_CTP_Main(args);
+            }
+            Console.ReadKey();
         }
 
         static void test_Linux_Main(string[] args)
@@ -241,26 +243,28 @@ namespace XAPI
 
             //api.Server.BrokerID = "1017";
             //api.Server.Address = "tcp://ctpmn1-front1.citicsf.com:51213";
-            api = new XApi(@"C:\Program Files\SmartQuant Ltd\OpenQuant 2014\XAPI\CTP\x86\QuantBox_CTP_Trade.dll");
+            api = new XApi(@"C:\Program Files\SmartQuant Ltd\OpenQuant 2014\XAPI\x86\CTP\CTP_Trade_x86.dll");
 
-            api.Server.BrokerID = "1017";
-            api.Server.Address = "tcp://ctpmn1-front1.citicsf.com:51205";
+            api.Server.BrokerID = "4040";
+            api.Server.Address = "tcp://180.166.103.21:51205";
             api.Server.PrivateTopicResumeType = ResumeType.Undefined;
 
-            api.User.UserID = "00000015";
-            api.User.Password = "123456";
+            api.User.UserID = "";
+            api.User.Password = "";
 
             api.OnConnectionStatus = OnConnectionStatus;
             api.OnRtnDepthMarketData = OnRtnDepthMarketData;
             api.OnRspQryInstrument = OnRspQryInstrument;
+            api.OnRspQrySettlementInfo = OnRspQrySettlementInfo;
 
             api.Connect();
-            Thread.Sleep(10 * 1000);
+            Thread.Sleep(5 * 1000);
             //api.Subscribe("IF1502", "");
             ReqQueryField query = default(ReqQueryField);
-            api.ReqQuery(QueryType.ReqQryInstrument, ref query);
+            query.DateStart = 20161124;
+            api.ReqQuery(QueryType.ReqQrySettlementInfo, ref query);
 
-            Thread.Sleep(300 * 1000);
+            Thread.Sleep(10 * 1000);
 
             api.Dispose();
 
@@ -319,14 +323,18 @@ namespace XAPI
 
         static void test_Tdx_Main(string[] args)
         {
-            api = new XApi(@"C:\Program Files\SmartQuant Ltd\OpenQuant 2014\XAPI\Tdx\x86\QuantBox_Tdx_Trade.dll");
+            api = new XApi(@"C:\Program Files\SmartQuant Ltd\OpenQuant 2014\XAPI\x86\Tdx\Tdx_Trade_x86.dll");
 
-            api.Server.BrokerID = "";
-            api.Server.Address = @"D:\new_hbzq_qq\Login.lua";
-            api.Server.ExtInfoChar128 = @"D:\new_hbzq_qq\";
 
-            api.User.UserID = "05000000000";
-            api.User.Password = "123456";
+            api.Server.Address = @"D:\tc_yhzq_v6\Login.lua";
+            api.Server.ExtInfoChar128 = @"D:\tc_yhzq_v6\";
+            api.User.UserID = "16206";
+            api.User.Password = "198450";
+
+            api.Server.Address = @"D:\new_gjzq_v6\Login.lua";
+            api.Server.ExtInfoChar128 = @"D:\new_gjzq_v6\";
+            api.User.UserID = "31244679";
+            api.User.Password = "400323";
 
             api.OnConnectionStatus = OnConnectionStatus;
             api.OnRtnDepthMarketData = OnRtnDepthMarketData;
@@ -334,13 +342,18 @@ namespace XAPI
             api.Connect();
 
             Console.ReadKey();
+            Console.WriteLine("回车后开始查持仓");
+            Console.ReadKey();
+
+            ReqQueryField query = new ReqQueryField();
+            query.Int32ID = -1;
+            api.ReqQuery(QueryType.ReqQryInvestorPosition, ref query);
+
+            // api.Dispose();
 
             Console.ReadKey();
 
-            api.Dispose();
-
-            Console.ReadKey();
-
+            Console.WriteLine("回车后退出");
             Console.ReadKey();
         }
 

@@ -209,11 +209,17 @@ namespace XAPI
         PendingReplace,
         Replace,
         ReplaceReject,
+        TradeCorrect,
+        TradeCancel,
+        OrderStatus,
+        PendingNew,
+        ClearingHold,
     };
 
     [ComVisible(false)]
     public enum OpenCloseType : byte
     {
+        Undefined,
         Open,
         Close,
         CloseToday,
@@ -304,6 +310,14 @@ namespace XAPI
         Fuse,				///熔断时段,参考于LTS
     };
 
+    [ComVisible(false)]
+    public enum BusinessType : byte
+    {
+        Undefined,
+        Future,
+        Stock,
+        Option,
+    };
 
 
 

@@ -45,11 +45,13 @@ CMdUserApi::CMdUserApi(void)
 	//m_msgQueue->m_bDirectOutput = true;
 
 	m_remoteQueue = nullptr;
+
+	//m_delete = false;
 }
 
 CMdUserApi::~CMdUserApi(void)
 {
-	Disconnect();
+	_Disconnect(false);
 }
 
 void CMdUserApi::QueryInThread(char type, void* pApi1, void* pApi2, double double1, double double2, void* ptr1, int size1, void* ptr2, int size2, void* ptr3, int size3)
@@ -60,11 +62,23 @@ void CMdUserApi::QueryInThread(char type, void* pApi1, void* pApi2, double doubl
 	case E_Init:
 		iRet = _Init();
 		break;
-	case E_ReqUserLoginField:
-		iRet = _ReqUserLogin(type, pApi1, pApi2, double1, double2, ptr1, size1, ptr2, size2, ptr3, size3);
-		break;
-	default:
-		break;
+	case E_Disconnect:
+		_Disconnect(true);
+		// 不再循环
+		return;
+
+	}
+
+	if (m_pApi)
+	{
+		switch (type)
+		{
+		case E_ReqUserLoginField:
+			iRet = _ReqUserLogin(type, pApi1, pApi2, double1, double2, ptr1, size1, ptr2, size2, ptr3, size3);
+			break;
+		default:
+			break;
+		}
 	}
 
 	if (0 == iRet)
@@ -118,7 +132,7 @@ bool CMdUserApi::IsErrorRspInfo(const char* szSource, CThostFtdcRspInfoField *pR
 		strcpy(pField->Text, pRspInfo->ErrorMsg);
 		strcpy(pField->Source, szSource);
 
-		m_msgQueue->Input_NoCopy(ResponeType::ResponeType_OnRtnError, m_msgQueue, m_pClass, bIsLast, 0, pField, sizeof(ErrorField), nullptr, 0, nullptr, 0);
+		m_msgQueue->Input_NoCopy(ResponseType::ResponseType_OnRtnError, m_msgQueue, m_pClass, bIsLast, 0, pField, sizeof(ErrorField), nullptr, 0, nullptr, 0);
 	}
 	return bRet;
 }
@@ -159,27 +173,47 @@ int CMdUserApi::_Init()
 	sprintf(pszPath, "%s/%s/%s/Md/%d/", m_szPath.c_str(), m_ServerInfo.BrokerID, m_UserInfo.UserID, rand());
 	makedirs(pszPath);
 
+	// 本来想使用chdir的方法解决Kingstar的证书问题，测试多次发现还是读取的exe目录下
+	// 打算使用文件复制的方法来实现，
+	// 1.先检查证书是否存在，存在就跳过
+	// 2.复制，用完要删
+#ifdef KS_COPYFILE
+	lock_guard<mutex> cl(m_csMapInstrumentIDs);
+
 	char szExePath[MAX_PATH] = { 0 };
 	GetExePath(szExePath);
 	char szDllPath[MAX_PATH] = { 0 };
 	GetDllPathByFunctionName("XRequest", szDllPath);
-	char szDirectory[MAX_PATH] = { 0 };
-	GetDirectoryByPath(szDllPath, szDirectory);
-	char szCurrDir[MAX_PATH] = { 0 };
 
-	if (SetCurrentDirectoryA(szDirectory))
+	char szExistingFileName[MAX_PATH] = { 0 };
+	char szNewFileName[MAX_PATH] = { 0 };
+	GetNewPathInSameDirectory(szDllPath, KS_LKC_FILENAME, KS_LKC_EXT, szExistingFileName);
+	GetNewPathInSameDirectory(szExePath, KS_LKC_FILENAME, KS_LKC_EXT, szNewFileName);
+
+	bool bRet = CopyFileA(szExistingFileName, szNewFileName, false);
+
+	if (!bRet)
 	{
+		char szBuf[256] = { 0 };
+		LPVOID lpMsgBuf;
+		DWORD dw = GetLastError();
+		FormatMessageA(
+			FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM,
+			NULL,
+			dw,
+			MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+			(LPSTR)&lpMsgBuf,
+			0, NULL);
+
 		LogField* pField = (LogField*)m_msgQueue->new_block(sizeof(LogField));
 
-		sprintf_s(pField->Message, "SetCurrentDirectory:%s", szDirectory);
+		sprintf(pField->Message, "CopyFile:%s", lpMsgBuf);
 
-		m_msgQueue->Input_NoCopy(ResponeType::ResponeType_OnLog, m_msgQueue, m_pClass, true, 0, pField, sizeof(LogField), nullptr, 0, nullptr, 0);
+		m_msgQueue->Input_NoCopy(ResponseType::ResponseType_OnLog, m_msgQueue, m_pClass, true, 0, pField, sizeof(LogField), nullptr, 0, nullptr, 0);
 	}
+#endif // KS_COPYFILE	
 
-	RspUserLoginField* pField = (RspUserLoginField*)m_msgQueue->new_block(sizeof(RspUserLoginField));
-	pField->RawErrorID = 0;
-	sprintf_s(pField->Text, "ExePath:%s", szExePath);
-	m_msgQueue->Input_NoCopy(ResponeType::ResponeType_OnConnectionStatus, m_msgQueue, m_pClass, ConnectionStatus::ConnectionStatus_Initialized, 0, pField, sizeof(RspUserLoginField), nullptr, 0, nullptr, 0);
+	m_msgQueue->Input_NoCopy(ResponseType::ResponseType_OnConnectionStatus, m_msgQueue, m_pClass, ConnectionStatus::ConnectionStatus_Initialized, 0, nullptr, 0, nullptr, 0, nullptr, 0);
 
 	m_pApi = CThostFtdcMdApi::CreateFtdcMdApi(pszPath, m_ServerInfo.IsUsingUdp, m_ServerInfo.IsMulticast);
 	delete[] pszPath;
@@ -206,8 +240,24 @@ int CMdUserApi::_Init()
 
 		//初始化连接
 		m_pApi->Init();
-		m_msgQueue->Input_NoCopy(ResponeType::ResponeType_OnConnectionStatus, m_msgQueue, m_pClass, ConnectionStatus::ConnectionStatus_Connecting, 0, nullptr, 0, nullptr, 0, nullptr, 0);
+		m_msgQueue->Input_NoCopy(ResponseType::ResponseType_OnConnectionStatus, m_msgQueue, m_pClass, ConnectionStatus::ConnectionStatus_Connecting, 0, nullptr, 0, nullptr, 0, nullptr, 0);
 	}
+	else
+	{
+		RspUserLoginField* pField = (RspUserLoginField*)m_msgQueue->new_block(sizeof(RspUserLoginField));
+
+		pField->RawErrorID = 0;
+		strncpy(pField->Text, "(Api==null)", sizeof(Char256Type));
+
+		m_msgQueue->Input_NoCopy(ResponseType::ResponseType_OnConnectionStatus, m_msgQueue, m_pClass, ConnectionStatus::ConnectionStatus_Disconnected, 0, pField, sizeof(RspUserLoginField), nullptr, 0, nullptr, 0);
+	}
+
+#ifdef KS_COPYFILE
+	if (bRet)
+	{
+		DeleteFileA(szNewFileName);
+	}
+#endif // KS_COPYFILE
 
 	return 0;
 }
@@ -226,31 +276,54 @@ void CMdUserApi::ReqUserLogin()
 
 int CMdUserApi::_ReqUserLogin(char type, void* pApi1, void* pApi2, double double1, double double2, void* ptr1, int size1, void* ptr2, int size2, void* ptr3, int size3)
 {
-	m_msgQueue->Input_NoCopy(ResponeType::ResponeType_OnConnectionStatus, m_msgQueue, m_pClass, ConnectionStatus::ConnectionStatus_Logining, 0, nullptr, 0, nullptr, 0, nullptr, 0);
+	m_msgQueue->Input_NoCopy(ResponseType::ResponseType_OnConnectionStatus, m_msgQueue, m_pClass, ConnectionStatus::ConnectionStatus_Logining, 0, nullptr, 0, nullptr, 0, nullptr, 0);
 	return m_pApi->ReqUserLogin((CThostFtdcReqUserLoginField*)ptr1, ++m_lRequestID);
 }
 
 void CMdUserApi::Disconnect()
 {
+	_Disconnect(false);
+}
+
+void CMdUserApi::_DisconnectInThread()
+{
+	m_msgQueue_Query->Input_NoCopy(RequestType::E_Disconnect, m_msgQueue_Query, this, 0, 0,
+		nullptr, 0, nullptr, 0, nullptr, 0);
+}
+
+void CMdUserApi::_Disconnect(bool IsInQueue)
+{
+	//if (m_delete)
+	//	return;
+
+	//m_delete = true;
+
 	// 清理查询队列
-	if (m_msgQueue_Query)
+	if (IsInQueue)
 	{
-		m_msgQueue_Query->StopThread();
-		m_msgQueue_Query->Register(nullptr,nullptr);
-		m_msgQueue_Query->Clear();
-		delete m_msgQueue_Query;
-		m_msgQueue_Query = nullptr;
+
+	}
+	else
+	{
+		if (m_msgQueue_Query)
+		{
+			m_msgQueue_Query->StopThread();
+			m_msgQueue_Query->Register(nullptr, nullptr);
+			m_msgQueue_Query->Clear();
+			delete m_msgQueue_Query;
+			m_msgQueue_Query = nullptr;
+		}
 	}
 
 	if(m_pApi)
 	{
-		m_pApi->RegisterSpi(NULL);
+		m_pApi->RegisterSpi(nullptr);
 		m_pApi->Release();
-		m_pApi = NULL;
+		m_pApi = nullptr;
 
 		// 全清理，只留最后一个
 		m_msgQueue->Clear();
-		m_msgQueue->Input_NoCopy(ResponeType::ResponeType_OnConnectionStatus, m_msgQueue, m_pClass, ConnectionStatus::ConnectionStatus_Disconnected, 0, nullptr, 0, nullptr, 0, nullptr, 0);
+		m_msgQueue->Input_NoCopy(ResponseType::ResponseType_OnConnectionStatus, m_msgQueue, m_pClass, ConnectionStatus::ConnectionStatus_Disconnected, 0, nullptr, 0, nullptr, 0, nullptr, 0);
 		// 主动触发
 		m_msgQueue->Process();
 	}
@@ -427,7 +500,7 @@ void CMdUserApi::UnsubscribeQuote(const string& szInstrumentIDs, const string& s
 
 void CMdUserApi::OnFrontConnected()
 {
-	m_msgQueue->Input_NoCopy(ResponeType::ResponeType_OnConnectionStatus, m_msgQueue, m_pClass, ConnectionStatus::ConnectionStatus_Connected, 0, nullptr, 0, nullptr, 0, nullptr, 0);
+	m_msgQueue->Input_NoCopy(ResponseType::ResponseType_OnConnectionStatus, m_msgQueue, m_pClass, ConnectionStatus::ConnectionStatus_Connected, 0, nullptr, 0, nullptr, 0, nullptr, 0);
 
 	//连接成功后自动请求登录
 	ReqUserLogin();
@@ -440,7 +513,10 @@ void CMdUserApi::OnFrontDisconnected(int nReason)
 	pField->RawErrorID = nReason;
 	GetOnFrontDisconnectedMsg(nReason, pField->Text);
 
-	m_msgQueue->Input_NoCopy(ResponeType::ResponeType_OnConnectionStatus, m_msgQueue, m_pClass, ConnectionStatus::ConnectionStatus_Disconnected, 0, pField, sizeof(RspUserLoginField), nullptr, 0, nullptr, 0);
+	m_msgQueue->Input_NoCopy(ResponseType::ResponseType_OnConnectionStatus, m_msgQueue, m_pClass, ConnectionStatus::ConnectionStatus_Disconnected, 0, pField, sizeof(RspUserLoginField), nullptr, 0, nullptr, 0);
+
+	// 断开连接
+	_DisconnectInThread();
 }
 
 void CMdUserApi::OnRspUserLogin(CThostFtdcRspUserLoginField *pRspUserLogin, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast)
@@ -456,8 +532,8 @@ void CMdUserApi::OnRspUserLogin(CThostFtdcRspUserLoginField *pRspUserLogin, CTho
 
 		sprintf(pField->SessionID, "%d:%d", pRspUserLogin->FrontID, pRspUserLogin->SessionID);
 
-		m_msgQueue->Input_NoCopy(ResponeType::ResponeType_OnConnectionStatus, m_msgQueue, m_pClass, ConnectionStatus::ConnectionStatus_Logined, 0, pField, sizeof(RspUserLoginField), nullptr, 0, nullptr, 0);
-		m_msgQueue->Input_NoCopy(ResponeType::ResponeType_OnConnectionStatus, m_msgQueue, m_pClass, ConnectionStatus::ConnectionStatus_Done, 0, nullptr, 0, nullptr, 0, nullptr, 0);
+		m_msgQueue->Input_NoCopy(ResponseType::ResponseType_OnConnectionStatus, m_msgQueue, m_pClass, ConnectionStatus::ConnectionStatus_Logined, 0, pField, sizeof(RspUserLoginField), nullptr, 0, nullptr, 0);
+		m_msgQueue->Input_NoCopy(ResponseType::ResponseType_OnConnectionStatus, m_msgQueue, m_pClass, ConnectionStatus::ConnectionStatus_Done, 0, nullptr, 0, nullptr, 0, nullptr, 0);
 
 		//有可能断线了，本处是断线重连后重新订阅
 		set<string> mapOld = m_setInstrumentIDs;//记下上次订阅的合约
@@ -473,7 +549,10 @@ void CMdUserApi::OnRspUserLogin(CThostFtdcRspUserLoginField *pRspUserLogin, CTho
 		pField->RawErrorID = pRspInfo->ErrorID;
 		strncpy(pField->Text, pRspInfo->ErrorMsg, sizeof(Char256Type));
 
-		m_msgQueue->Input_NoCopy(ResponeType::ResponeType_OnConnectionStatus, m_msgQueue, m_pClass, ConnectionStatus::ConnectionStatus_Disconnected, 0, pField, sizeof(RspUserLoginField), nullptr, 0, nullptr, 0);
+		m_msgQueue->Input_NoCopy(ResponseType::ResponseType_OnConnectionStatus, m_msgQueue, m_pClass, ConnectionStatus::ConnectionStatus_Disconnected, 0, pField, sizeof(RspUserLoginField), nullptr, 0, nullptr, 0);
+
+		// 断开连接
+		_DisconnectInThread();
 	}
 }
 
@@ -624,11 +703,11 @@ void CMdUserApi::OnRtnDepthMarketData(CThostFtdcDepthMarketDataField *pDepthMark
 #ifdef _REMOTE
 		if (m_remoteQueue)
 		{
-			m_remoteQueue->Input_Copy(ResponeType::ResponeType_OnRtnDepthMarketData, m_msgQueue, m_pClass, 0, 0, pField, pField->Size, nullptr, 0, nullptr, 0);
+			m_remoteQueue->Input_Copy(ResponseType::ResponseType_OnRtnDepthMarketData, m_msgQueue, m_pClass, 0, 0, pField, pField->Size, nullptr, 0, nullptr, 0);
 		}
 #endif
 
-		m_msgQueue->Input_NoCopy(ResponeType::ResponeType_OnRtnDepthMarketData, m_msgQueue, m_pClass, 0, 0, pField, pField->Size, nullptr, 0, nullptr, 0);
+		m_msgQueue->Input_NoCopy(ResponseType::ResponseType_OnRtnDepthMarketData, m_msgQueue, m_pClass, 0, 0, pField, pField->Size, nullptr, 0, nullptr, 0);
 		// 要关注一下其内的
 	//}
 }
@@ -668,5 +747,5 @@ void CMdUserApi::OnRtnForQuoteRsp(CThostFtdcForQuoteRspField *pForQuoteRsp)
 	sprintf(pField->Symbol, "%s.%s", pField->InstrumentID, pField->ExchangeID);
 	strcpy(pField->QuoteID, pForQuoteRsp->ForQuoteSysID);
 
-	m_msgQueue->Input_NoCopy(ResponeType::ResponeType_OnRtnQuoteRequest, m_msgQueue, m_pClass, 0, 0, pField, sizeof(QuoteRequestField), nullptr, 0, nullptr, 0);
+	m_msgQueue->Input_NoCopy(ResponseType::ResponseType_OnRtnQuoteRequest, m_msgQueue, m_pClass, 0, 0, pField, sizeof(QuoteRequestField), nullptr, 0, nullptr, 0);
 }

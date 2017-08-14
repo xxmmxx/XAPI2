@@ -3,7 +3,7 @@ using XAPI.Callback;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.EnterpriseServices;
+//using System.EnterpriseServices;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
@@ -18,8 +18,8 @@ namespace XAPI.COM
     [ClassInterface(ClassInterfaceType.None)]
     [ComSourceInterfaces(typeof(IXApiEvents))]
     [ProgId("XAPI.COM")]
-    [EventTrackingEnabled(true)]
-    [Description("Interface Serviced Component")]
+    //[EventTrackingEnabled(true)]
+    //[Description("Interface Serviced Component")]
     public class XApiCom : UserControl,/*ServicedComponent,*/ IXApi,
         IObjectSafety // implement IObjectSafety to supress the unsafe for scripting 
                        // warning message
@@ -53,6 +53,7 @@ namespace XAPI.COM
         public event DelegateOnRspQryInstrument OnRspQryInstrument;
         public event DelegateOnRspQryTradingAccount OnRspQryTradingAccount;
         public event DelegateOnRspQryInvestorPosition OnRspQryInvestorPosition;
+        public event DelegateOnRspQrySettlementInfo OnRspQrySettlementInfo;
         public event DelegateOnRtnOrder OnRtnOrder;
         public event DelegateOnRtnTrade OnRtnTrade;
         public event DelegateOnRspQryOrder OnRspQryOrder;
@@ -102,13 +103,6 @@ namespace XAPI.COM
 
             // Finally close the main key
             k.Close();
-
-            // 这里不知道如何使用
-            //Guid clsid = typeof(XApiCom).GUID;
-            //cookie = msRegSvc.RegisterTypeForComClients(
-            //    typeof(XApiCom),
-            //    RegistrationClassContext.LocalServer,
-            //    RegistrationConnectionType.SingleUse);
         }
 
         ///<summary>
@@ -135,8 +129,6 @@ namespace XAPI.COM
 
             // Finally close the main key 
             k.Close();
-
-            //msRegSvc.UnregisterTypeForComClients(cookie);
         }
 
         public XApiCom()
@@ -155,7 +147,7 @@ namespace XAPI.COM
             api.OnRspQryInstrument = OnRspQryInstrument_callback;
             api.OnRspQryTradingAccount = OnRspQryTradingAccount_callback;
             api.OnRspQryInvestorPosition = OnRspQryInvestorPosition_callback;
-            //base.OnRspQrySettlementInfo = OnRspQrySettlementInfo_callback;
+            api.OnRspQrySettlementInfo = OnRspQrySettlementInfo_callback;
 
             api.OnRspQryOrder = OnRspQryOrder_callback;
             api.OnRspQryTrade = OnRspQryTrade_callback;
@@ -172,7 +164,20 @@ namespace XAPI.COM
 
             InitializeComponent();
 
-            
+
+            Console.WriteLine("ReferenceCountedObjectBase contructor.");
+            // We increment the global count of objects.
+            ManagedCOMLocalServer.InterlockedIncrementObjectsCount();
+        }
+
+        ~XApiCom()
+        {
+            Console.WriteLine("ReferenceCountedObjectBase destructor.");
+            // We decrement the global count of objects.
+            ManagedCOMLocalServer.InterlockedDecrementObjectsCount();
+            // We then immediately test to see if we the conditions
+            // are right to attempt to terminate this server application.
+            ManagedCOMLocalServer.AttemptToTerminateServer();
         }
 
         public void SetLibPath(string LibPath)
@@ -295,9 +300,10 @@ namespace XAPI.COM
             }
         }
 
-        public void ReqQuery(XAPI.QueryType type)
+        public void ReqQuery(string type)
         {
-            api.ReqQuery(type, ref _Query);
+            QueryType obj = Enum<QueryType>.Parse(type);
+            api.ReqQuery(obj, ref _Query);
         }
 
         public QueueData TryDequeue()
@@ -310,13 +316,20 @@ namespace XAPI.COM
             return null;
         }
 
-        private void OnConnectionStatus_callback(object sender, XAPI.ConnectionStatus status, ref RspUserLoginField userLogin, int size1)
+        /// <summary>
+        /// 给COM使用，进行内存回收
+        /// </summary>
+        public void GCCollect()
         {
-            RspUserLoginClass cls = null;
+            api.GCCollect();
+        }
+
+        private void OnConnectionStatus_callback(object sender, XAPI.ConnectionStatus status, [In] ref RspUserLoginField userLogin, int size1)
+        {
+            RspUserLoginClass cls = new RspUserLoginClass();
 
             if (size1 > 0)
             {
-                cls = new RspUserLoginClass();
                 RspUserLoginField field = userLogin;
 
                 cls.TradingDay = field.TradingDay;
@@ -333,8 +346,8 @@ namespace XAPI.COM
             if (null == OnConnectionStatus)
             {
                 QueueData qd = new QueueData();
-                qd.Type = (int)ResponeType.OnConnectionStatus;
-                qd.Type_String = Enum<XAPI.ResponeType>.ToString(ResponeType.OnConnectionStatus);
+                qd.Type = (int)ResponseType.OnConnectionStatus;
+                qd.Type_String = Enum<XAPI.ResponseType>.ToString(ResponseType.OnConnectionStatus);
                 qd.Sender = this;
                 qd.Data1 = status;
                 qd.Data2 = Enum<XAPI.ConnectionStatus>.ToString(status);
@@ -345,7 +358,7 @@ namespace XAPI.COM
             }
             else
             {
-                OnConnectionStatus(this, (int)status, Enum<XAPI.ConnectionStatus>.ToString(status), ref cls, size1);
+                OnConnectionStatus(this, (int)status, Enum<XAPI.ConnectionStatus>.ToString(status), cls, size1);
             }
         }
 
@@ -364,8 +377,8 @@ namespace XAPI.COM
             if (null == OnRtnError)
             {
                 QueueData qd = new QueueData();
-                qd.Type = (int)ResponeType.OnRtnError;
-                qd.Type_String = Enum<XAPI.ResponeType>.ToString(ResponeType.OnRtnError);
+                qd.Type = (int)ResponseType.OnRtnError;
+                qd.Type_String = Enum<XAPI.ResponseType>.ToString(ResponseType.OnRtnError);
                 qd.Sender = this;
                 qd.Data1 = cls;
 
@@ -373,7 +386,7 @@ namespace XAPI.COM
             }
             else
             {
-                OnRtnError(this, ref cls);
+                OnRtnError(this, cls);
             }
         }
 
@@ -391,8 +404,8 @@ namespace XAPI.COM
             if (null == OnLog)
             {
                 QueueData qd = new QueueData();
-                qd.Type = (int)ResponeType.OnLog;
-                qd.Type_String = Enum<XAPI.ResponeType>.ToString(ResponeType.OnLog);
+                qd.Type = (int)ResponseType.OnLog;
+                qd.Type_String = Enum<XAPI.ResponseType>.ToString(ResponseType.OnLog);
                 qd.Sender = this;
                 qd.Data1 = cls;
 
@@ -400,11 +413,11 @@ namespace XAPI.COM
             }
             else
             {
-                OnLog(this, ref cls);
+                OnLog(this, cls);
             }
         }
 
-        private void OnRtnDepthMarketData_callback(object sender, ref XAPI.DepthMarketDataNClass marketData)
+        private void OnRtnDepthMarketData_callback(object sender, [In] ref XAPI.DepthMarketDataNClass marketData)
         {
             DepthMarketDataNClass cls = new DepthMarketDataNClass();
             XAPI.DepthMarketDataNClass field = marketData;
@@ -434,14 +447,24 @@ namespace XAPI.COM
             cls.PreOpenInterest = field.PreOpenInterest;
             cls.TradingPhase = (int)field.TradingPhase;
             cls.TradingPhase_String = Enum<XAPI.TradingPhaseType>.ToString(field.TradingPhase);
-            //cls.Bids = marketData.TradingDay;
-            //cls.TradingDay = marketData.TradingDay;
+
+            if (field.Bids != null && field.Bids.Length > 0)
+            {
+                cls.BidPrice1 = field.Bids[0].Price;
+                cls.BidSize = field.Bids[0].Size;
+            }
+
+            if (field.Asks != null && field.Asks.Length > 0)
+            {
+                cls.AskPrice1 = field.Asks[0].Price;
+                cls.AskSize = field.Asks[0].Size;
+            }
 
             if (null == OnRtnDepthMarketData)
             {
                 QueueData qd = new QueueData();
-                qd.Type = (int)ResponeType.OnRtnDepthMarketData;
-                qd.Type_String = Enum<XAPI.ResponeType>.ToString(ResponeType.OnRtnDepthMarketData);
+                qd.Type = (int)ResponseType.OnRtnDepthMarketData;
+                qd.Type_String = Enum<XAPI.ResponseType>.ToString(ResponseType.OnRtnDepthMarketData);
                 qd.Sender = this;
                 qd.Data1 = cls;
 
@@ -449,11 +472,11 @@ namespace XAPI.COM
             }
             else
             {
-                OnRtnDepthMarketData(this, ref cls);
+                OnRtnDepthMarketData(this, cls);
             }
         }
 
-        private void OnRtnOrder_callback(object sender, ref OrderField order)
+        private void OnRtnOrder_callback(object sender, [In] ref OrderField order)
         {
             OrderField field = order;
 
@@ -496,11 +519,17 @@ namespace XAPI.COM
             cls.ReserveInt32 = field.ReserveInt32;
             cls.ReserveChar64 = field.ReserveChar64;
 
+            cls.PortfolioID1 = field.PortfolioID1;
+            cls.PortfolioID2 = field.PortfolioID2;
+            cls.PortfolioID3 = field.PortfolioID3;
+            cls.Business = (int)field.Business;
+            cls.Business_String = Enum<XAPI.BusinessType>.ToString(field.Business);
+
             if (null == OnRtnOrder)
             {
                 QueueData qd = new QueueData();
-                qd.Type = (int)ResponeType.OnRtnOrder;
-                qd.Type_String = Enum<XAPI.ResponeType>.ToString(ResponeType.OnRtnOrder);
+                qd.Type = (int)ResponseType.OnRtnOrder;
+                qd.Type_String = Enum<XAPI.ResponseType>.ToString(ResponseType.OnRtnOrder);
                 qd.Sender = this;
                 qd.Data1 = cls;
 
@@ -508,11 +537,11 @@ namespace XAPI.COM
             }
             else
             {
-                OnRtnOrder(this, ref cls);
+                OnRtnOrder(this, cls);
             }
         }
 
-        private void OnRtnTrade_callback(object sender, ref TradeField trade)
+        private void OnRtnTrade_callback(object sender, [In] ref TradeField trade)
         {
             if (null == OnRtnTrade)
                 return;
@@ -542,11 +571,17 @@ namespace XAPI.COM
             cls.ReserveInt32 = field.ReserveInt32;
             cls.ReserveChar64 = field.ReserveChar64;
 
+            cls.PortfolioID1 = field.PortfolioID1;
+            cls.PortfolioID2 = field.PortfolioID2;
+            cls.PortfolioID3 = field.PortfolioID3;
+            cls.Business = (int)field.Business;
+            cls.Business_String = Enum<XAPI.BusinessType>.ToString(field.Business);
+
             if (null == OnRtnTrade)
             {
                 QueueData qd = new QueueData();
-                qd.Type = (int)ResponeType.OnRtnTrade;
-                qd.Type_String = Enum<XAPI.ResponeType>.ToString(ResponeType.OnRtnTrade);
+                qd.Type = (int)ResponseType.OnRtnTrade;
+                qd.Type_String = Enum<XAPI.ResponseType>.ToString(ResponseType.OnRtnTrade);
                 qd.Sender = this;
                 qd.Data1 = cls;
 
@@ -554,11 +589,11 @@ namespace XAPI.COM
             }
             else
             {
-                OnRtnTrade(this, ref cls);
+                OnRtnTrade(this, cls);
             }
         }
 
-        private void OnRspQryInstrument_callback(object sender, ref InstrumentField instrument, int size1, bool bIsLast)
+        private void OnRspQryInstrument_callback(object sender, [In] ref InstrumentField instrument, int size1, bool bIsLast)
         {
             if (null == OnRspQryInstrument)
                 return;
@@ -596,8 +631,8 @@ namespace XAPI.COM
             if (null == OnRspQryInstrument)
             {
                 QueueData qd = new QueueData();
-                qd.Type = (int)ResponeType.OnRspQryInstrument;
-                qd.Type_String = Enum<XAPI.ResponeType>.ToString(ResponeType.OnRspQryInstrument);
+                qd.Type = (int)ResponseType.OnRspQryInstrument;
+                qd.Type_String = Enum<XAPI.ResponseType>.ToString(ResponseType.OnRspQryInstrument);
                 qd.Sender = this;
                 qd.Data1 = cls;
                 qd.Data2 = size1;
@@ -607,11 +642,11 @@ namespace XAPI.COM
             }
             else
             {
-                OnRspQryInstrument(this, ref cls, size1, bIsLast);
+                OnRspQryInstrument(this, cls, size1, bIsLast);
             }
         }
 
-        private void OnRspQryInvestorPosition_callback(object sender, ref PositionField position, int size1, bool bIsLast)
+        private void OnRspQryInvestorPosition_callback(object sender, [In] ref PositionField position, int size1, bool bIsLast)
         {
             if (null == OnRspQryInvestorPosition)
                 return;
@@ -642,12 +677,20 @@ namespace XAPI.COM
             cls.TodayBSFrozen = field.TodayBSFrozen;
             cls.TodayPRPosition = field.TodayPRPosition;
             cls.TodayPRFrozen = field.TodayPRFrozen;
+            cls.ID = field.ID;
+
+            cls.PortfolioID1 = field.PortfolioID1;
+            cls.PortfolioID2 = field.PortfolioID2;
+            cls.PortfolioID3 = field.PortfolioID3;
+            cls.Business = (int)field.Business;
+            cls.Business_String = Enum<XAPI.BusinessType>.ToString(field.Business);
+
 
             if (null == OnRspQryInvestorPosition)
             {
                 QueueData qd = new QueueData();
-                qd.Type = (int)ResponeType.OnRspQryInvestorPosition;
-                qd.Type_String = Enum<XAPI.ResponeType>.ToString(ResponeType.OnRspQryInvestorPosition);
+                qd.Type = (int)ResponseType.OnRspQryInvestorPosition;
+                qd.Type_String = Enum<XAPI.ResponseType>.ToString(ResponseType.OnRspQryInvestorPosition);
                 qd.Sender = this;
                 qd.Data1 = cls;
                 qd.Data2 = size1;
@@ -657,11 +700,41 @@ namespace XAPI.COM
             }
             else
             {
-                OnRspQryInvestorPosition(this, ref cls, size1, bIsLast);
+                OnRspQryInvestorPosition(this, cls, size1, bIsLast);
             }
         }
 
-        private void OnRspQryTradingAccount_callback(object sender, ref AccountField account, int size1, bool bIsLast)
+        private void OnRspQrySettlementInfo_callback(object sender, [In] ref XAPI.SettlementInfoClass settlementInfo, int size1, bool bIsLast)
+        {
+            if (null == OnRspQrySettlementInfo)
+                return;
+
+            XAPI.SettlementInfoClass field = settlementInfo;
+
+            XAPI.COM.SettlementInfoClass cls = new XAPI.COM.SettlementInfoClass();
+            cls.TradingDay = field.TradingDay;
+            cls.Content = field.Content;
+
+            if (null == OnRspQrySettlementInfo)
+            {
+                QueueData qd = new QueueData();
+                qd.Type = (int)ResponseType.OnRspQrySettlementInfo;
+                qd.Type_String = Enum<XAPI.ResponseType>.ToString(ResponseType.OnRspQrySettlementInfo);
+                qd.Sender = this;
+                qd.Data1 = cls;
+                qd.Data2 = size1;
+                qd.Data3 = bIsLast;
+
+                MessageQueue.Enqueue(qd);
+            }
+            else
+            {
+                OnRspQrySettlementInfo(this, cls, size1, bIsLast);
+            }
+        }
+
+
+        private void OnRspQryTradingAccount_callback(object sender, [In] ref AccountField account, int size1, bool bIsLast)
         {
             if (null == OnRspQryTradingAccount)
                 return;
@@ -694,8 +767,8 @@ namespace XAPI.COM
             if (null == OnRspQryTradingAccount)
             {
                 QueueData qd = new QueueData();
-                qd.Type = (int)ResponeType.OnRspQryTradingAccount;
-                qd.Type_String = Enum<XAPI.ResponeType>.ToString(ResponeType.OnRspQryTradingAccount);
+                qd.Type = (int)ResponseType.OnRspQryTradingAccount;
+                qd.Type_String = Enum<XAPI.ResponseType>.ToString(ResponseType.OnRspQryTradingAccount);
                 qd.Sender = this;
                 qd.Data1 = cls;
                 qd.Data2 = size1;
@@ -705,23 +778,21 @@ namespace XAPI.COM
             }
             else
             {
-                OnRspQryTradingAccount(this, ref cls, size1, bIsLast);
+                OnRspQryTradingAccount(this, cls, size1, bIsLast);
             }
         }
 
-        private void OnRspQryOrder_callback(object sender, ref OrderField order, int size1, bool bIsLast)
+        private void OnRspQryOrder_callback(object sender, [In] ref OrderField order, int size1, bool bIsLast)
         {
             if (null == OnRspQryOrder)
                 return;
 
-            OrderClass cls = null;
+            OrderClass cls = new OrderClass();
 
             if (size1 > 0)
             {
                 OrderField field = order;
-
-                cls = new OrderClass();
-
+                
                 cls.InstrumentName = field.InstrumentName();
                 cls.Symbol = field.Symbol;
                 cls.InstrumentID = field.InstrumentID;
@@ -758,13 +829,19 @@ namespace XAPI.COM
                 cls.Text = field.Text();
                 cls.ReserveInt32 = field.ReserveInt32;
                 cls.ReserveChar64 = field.ReserveChar64;
+
+                cls.PortfolioID1 = field.PortfolioID1;
+                cls.PortfolioID2 = field.PortfolioID2;
+                cls.PortfolioID3 = field.PortfolioID3;
+                cls.Business = (int)field.Business;
+                cls.Business_String = Enum<XAPI.BusinessType>.ToString(field.Business);
             }
 
             if (null == OnRspQryOrder)
             {
                 QueueData qd = new QueueData();
-                qd.Type = (int)ResponeType.OnRspQryOrder;
-                qd.Type_String = Enum<XAPI.ResponeType>.ToString(ResponeType.OnRspQryOrder);
+                qd.Type = (int)ResponseType.OnRspQryOrder;
+                qd.Type_String = Enum<XAPI.ResponseType>.ToString(ResponseType.OnRspQryOrder);
                 qd.Sender = this;
                 qd.Data1 = cls;
                 qd.Data2 = size1;
@@ -774,22 +851,20 @@ namespace XAPI.COM
             }
             else
             {
-                OnRspQryOrder(this, ref cls, size1, bIsLast);
+                OnRspQryOrder(this, cls, size1, bIsLast);
             }
         }
 
-        private void OnRspQryTrade_callback(object sender, ref TradeField trade, int size1, bool bIsLast)
+        private void OnRspQryTrade_callback(object sender, [In] ref TradeField trade, int size1, bool bIsLast)
         {
             if (null == OnRspQryTrade)
                 return;
 
-            TradeClass cls = null;
+            TradeClass cls = new TradeClass();
 
             if (size1 > 0)
             {
                 TradeField field = trade;
-
-                cls = new TradeClass();
 
                 cls.InstrumentName = field.InstrumentName();
                 cls.Symbol = field.Symbol;
@@ -811,13 +886,19 @@ namespace XAPI.COM
                 cls.TradeID = field.TradeID;
                 cls.ReserveInt32 = field.ReserveInt32;
                 cls.ReserveChar64 = field.ReserveChar64;
+
+                cls.PortfolioID1 = field.PortfolioID1;
+                cls.PortfolioID2 = field.PortfolioID2;
+                cls.PortfolioID3 = field.PortfolioID3;
+                cls.Business = (int)field.Business;
+                cls.Business_String = Enum<XAPI.BusinessType>.ToString(field.Business);
             }
 
             if (null == OnRspQryTrade)
             {
                 QueueData qd = new QueueData();
-                qd.Type = (int)ResponeType.OnRspQryTrade;
-                qd.Type_String = Enum<XAPI.ResponeType>.ToString(ResponeType.OnRspQryTrade);
+                qd.Type = (int)ResponseType.OnRspQryTrade;
+                qd.Type_String = Enum<XAPI.ResponseType>.ToString(ResponseType.OnRspQryTrade);
                 qd.Sender = this;
                 qd.Data1 = cls;
                 qd.Data2 = size1;
@@ -827,7 +908,7 @@ namespace XAPI.COM
             }
             else
             {
-                OnRspQryTrade(this, ref cls, size1, bIsLast);
+                OnRspQryTrade(this, cls, size1, bIsLast);
             }
         }
 
@@ -853,6 +934,28 @@ namespace XAPI.COM
             this.ResumeLayout(false);
             this.PerformLayout();
 
+        }
+    }
+
+    class SimpleCOMObjectClassFactory : ClassFactoryBase
+    {
+        public override void virtual_CreateInstance(IntPtr pUnkOuter, ref Guid riid, out IntPtr ppvObject)
+        {
+            Console.WriteLine("SimpleCOMObjectClassFactory.CreateInstance().");
+            Console.WriteLine("Requesting Interface : " + riid.ToString());
+
+            if (riid == Marshal.GenerateGuidForType(typeof(IXApi)) ||
+                riid == ManagedCOMLocalServer.IID_IDispatch ||
+                riid == ManagedCOMLocalServer.IID_IUnknown)
+            {
+                XApiCom SimpleCOMObject_New = new XApiCom();
+
+                ppvObject = Marshal.GetComInterfaceForObject(SimpleCOMObject_New, typeof(IXApi));
+            }
+            else
+            {
+                throw new COMException("No interface", unchecked((int)0x80004002));
+            }
         }
     }
 }

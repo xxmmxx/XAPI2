@@ -1,4 +1,4 @@
-#include "stdafx.h"
+ï»¿#include "stdafx.h"
 #include "QueryApi.h"
 
 #include "../../include/QueueEnum.h"
@@ -11,7 +11,7 @@
 
 #include "../../common/Queue/MsgQueue.h"
 
-// ÕâÀïÓÃµÄÊÇÓë½»Ò×Í¬Ò»¸öÀàĞÍ×ª»»
+// è¿™é‡Œç”¨çš„æ˜¯ä¸äº¤æ˜“åŒä¸€ä¸ªç±»å‹è½¬æ¢
 #include "../LTS_Trade_v2/TypeConvert.h"
 
 #include <cstring>
@@ -19,7 +19,7 @@
 
 void* __stdcall Query_Q(char type, void* pApi1, void* pApi2, double double1, double double2, void* ptr1, int size1, void* ptr2, int size2, void* ptr3, int size3)
 {
-	// ÓÉÄÚ²¿µ÷ÓÃ£¬²»ÓÃ¼ì²éÊÇ·ñÎª¿Õ
+	// ç”±å†…éƒ¨è°ƒç”¨ï¼Œä¸ç”¨æ£€æŸ¥æ˜¯å¦ä¸ºç©º
 	CQueryApi* pApi = (CQueryApi*)pApi2;
 	pApi->QueryInThread(type, pApi1, pApi2, double1, double2, ptr1, size1, ptr2, size2, ptr3, size3);
 	return nullptr;
@@ -33,43 +33,50 @@ void CQueryApi::QueryInThread(char type, void* pApi1, void* pApi2, double double
 	case E_Init:
 		iRet = _Init();
 		break;
-	case E_ReqUserLoginField:
-		iRet = _ReqUserLogin(type, pApi1, pApi2, double1, double2, ptr1, size1, ptr2, size2, ptr3, size3);
-		break;
-	case QueryType::QueryType_ReqQryTradingAccount:
-		iRet = _ReqQryTradingAccount(type, pApi1, pApi2, double1, double2, ptr1, size1, ptr2, size2, ptr3, size3);
-		break;
-	case QueryType::QueryType_ReqQryInvestorPosition:
-		iRet = _ReqQryInvestorPosition(type, pApi1, pApi2, double1, double2, ptr1, size1, ptr2, size2, ptr3, size3);
-		break;
-	case QueryType::QueryType_ReqQryInstrument:
-		iRet = _ReqQryInstrument(type, pApi1, pApi2, double1, double2, ptr1, size1, ptr2, size2, ptr3, size3);
-		break;
-	case QueryType::QueryType_ReqQryInvestor:
-		iRet = _ReqQryInvestor(type, pApi1, pApi2, double1, double2, ptr1, size1, ptr2, size2, ptr3, size3);
-		break;
-	case QueryType::QueryType_ReqQryOrder:
-		iRet = _ReqQryOrder(type, pApi1, pApi2, double1, double2, ptr1, size1, ptr2, size2, ptr3, size3);
-		break;
-	case QueryType::QueryType_ReqQryTrade:
-		iRet = _ReqQryTrade(type, pApi1, pApi2, double1, double2, ptr1, size1, ptr2, size2, ptr3, size3);
-		break;
-	case E_AuthRandCodeField:
-		iRet = _ReqFetchAuthRandCode(type, pApi1, pApi2, double1, double2, ptr1, size1, ptr2, size2, ptr3, size3);
-		break;
-	default:
-		break;
+	}
+
+	if (m_pApi)
+	{
+		switch (type)
+		{
+		case E_ReqUserLoginField:
+			iRet = _ReqUserLogin(type, pApi1, pApi2, double1, double2, ptr1, size1, ptr2, size2, ptr3, size3);
+			break;
+		case QueryType::QueryType_ReqQryTradingAccount:
+			iRet = _ReqQryTradingAccount(type, pApi1, pApi2, double1, double2, ptr1, size1, ptr2, size2, ptr3, size3);
+			break;
+		case QueryType::QueryType_ReqQryInvestorPosition:
+			iRet = _ReqQryInvestorPosition(type, pApi1, pApi2, double1, double2, ptr1, size1, ptr2, size2, ptr3, size3);
+			break;
+		case QueryType::QueryType_ReqQryInstrument:
+			iRet = _ReqQryInstrument(type, pApi1, pApi2, double1, double2, ptr1, size1, ptr2, size2, ptr3, size3);
+			break;
+		case QueryType::QueryType_ReqQryInvestor:
+			iRet = _ReqQryInvestor(type, pApi1, pApi2, double1, double2, ptr1, size1, ptr2, size2, ptr3, size3);
+			break;
+		case QueryType::QueryType_ReqQryOrder:
+			iRet = _ReqQryOrder(type, pApi1, pApi2, double1, double2, ptr1, size1, ptr2, size2, ptr3, size3);
+			break;
+		case QueryType::QueryType_ReqQryTrade:
+			iRet = _ReqQryTrade(type, pApi1, pApi2, double1, double2, ptr1, size1, ptr2, size2, ptr3, size3);
+			break;
+		case E_AuthRandCodeField:
+			iRet = _ReqFetchAuthRandCode(type, pApi1, pApi2, double1, double2, ptr1, size1, ptr2, size2, ptr3, size3);
+			break;
+		default:
+			break;
+		}
 	}
 
 	if (0 == iRet)
 	{
-		//·µ»Ø³É¹¦£¬Ìî¼Óµ½ÒÑ·¢ËÍ³Ø
+		//è¿”å›æˆåŠŸï¼Œå¡«åŠ åˆ°å·²å‘é€æ± 
 		m_nSleep = 1;
 	}
 	else
 	{
 		m_msgQueue_Query->Input_Copy(type, pApi1, pApi2, double1, double2, ptr1, size1, ptr2, size2, ptr3, size3);
-		//Ê§°Ü£¬°´4µÄÃİ½øĞĞÑÓÊ±£¬µ«²»³¬¹ı1s
+		//å¤±è´¥ï¼ŒæŒ‰4çš„å¹‚è¿›è¡Œå»¶æ—¶ï¼Œä½†ä¸è¶…è¿‡1s
 		m_nSleep *= 4;
 		m_nSleep %= 1023;
 	}
@@ -102,7 +109,7 @@ CQueryApi::CQueryApi(void)
 	m_lRequestID = 0;
 	m_nSleep = 1;
 
-	// ×Ô¼ºÎ¬»¤Á½¸öÏûÏ¢¶ÓÁĞ
+	// è‡ªå·±ç»´æŠ¤ä¸¤ä¸ªæ¶ˆæ¯é˜Ÿåˆ—
 	m_msgQueue = new CMsgQueue();
 	m_msgQueue_Query = new CMsgQueue();
 
@@ -127,7 +134,7 @@ bool CQueryApi::IsErrorRspInfo(const char* szSource, CSecurityFtdcRspInfoField *
 		strcpy(pField->Text, pRspInfo->ErrorMsg);
 		strcpy(pField->Source, szSource);
 
-		m_msgQueue->Input_NoCopy(ResponeType::ResponeType_OnRtnError, m_msgQueue, m_pClass, bIsLast, 0, pField, sizeof(ErrorField), nullptr, 0, nullptr, 0);
+		m_msgQueue->Input_NoCopy(ResponseType::ResponseType_OnRtnError, m_msgQueue, m_pClass, bIsLast, 0, pField, sizeof(ErrorField), nullptr, 0, nullptr, 0);
 	}
 	return bRet;
 }
@@ -161,13 +168,13 @@ int CQueryApi::_Init()
 	m_pApi = CSecurityFtdcQueryApi::CreateFtdcQueryApi(pszPath);
 	delete[] pszPath;
 
-	m_msgQueue->Input_NoCopy(ResponeType::ResponeType_OnConnectionStatus, m_msgQueue, m_pClass, ConnectionStatus::ConnectionStatus_Initialized, 0, nullptr, 0, nullptr, 0, nullptr, 0);
+	m_msgQueue->Input_NoCopy(ResponseType::ResponseType_OnConnectionStatus, m_msgQueue, m_pClass, ConnectionStatus::ConnectionStatus_Initialized, 0, nullptr, 0, nullptr, 0, nullptr, 0);
 
 	if (m_pApi)
 	{
 		m_pApi->RegisterSpi(this);
 
-		//Ìí¼ÓµØÖ·
+		//æ·»åŠ åœ°å€
 		size_t len = strlen(m_ServerInfo.Address) + 1;
 		char* buf = new char[len];
 		strncpy(buf, m_ServerInfo.Address, len);
@@ -183,7 +190,7 @@ int CQueryApi::_Init()
 		}
 		delete[] buf;
 
-		//Èç¹û¿Õ×Å£¬·´¶øÊÇ´ÓÍ·¿ªÊ¼½ÓÊÕÁË£¬ËùÒÔÕâÀïÒªÌØ±ğ´¦ÀíÒ»ÏÂ
+		//å¦‚æœç©ºç€ï¼Œåè€Œæ˜¯ä»å¤´å¼€å§‹æ¥æ”¶äº†ï¼Œæ‰€ä»¥è¿™é‡Œè¦ç‰¹åˆ«å¤„ç†ä¸€ä¸‹
 		//if (m_ServerInfo.PublicTopicResumeType < ResumeType::ResumeType_Undefined)
 		//{
 		//	m_pApi->SubscribePublicTopic((THOST_TE_RESUME_TYPE)m_ServerInfo.PublicTopicResumeType);
@@ -202,8 +209,8 @@ int CQueryApi::_Init()
 		//	m_pApi->SubscribePrivateTopic(THOST_TERT_QUICK);
 		//}
 
-		m_msgQueue->Input_NoCopy(ResponeType::ResponeType_OnConnectionStatus, m_msgQueue, m_pClass, ConnectionStatus::ConnectionStatus_Connecting, 0, nullptr, 0, nullptr, 0, nullptr, 0);
-		//³õÊ¼»¯Á¬½Ó
+		m_msgQueue->Input_NoCopy(ResponseType::ResponseType_OnConnectionStatus, m_msgQueue, m_pClass, ConnectionStatus::ConnectionStatus_Connecting, 0, nullptr, 0, nullptr, 0, nullptr, 0);
+		//åˆå§‹åŒ–è¿æ¥
 		m_pApi->Init();
 	}
 
@@ -227,10 +234,10 @@ void CQueryApi::Disconnect()
 		m_pApi->Release();
 		m_pApi = nullptr;
 
-		// È«ÇåÀí£¬Ö»Áô×îºóÒ»¸ö
+		// å…¨æ¸…ç†ï¼Œåªç•™æœ€åä¸€ä¸ª
 		m_msgQueue->Clear();
-		m_msgQueue->Input_NoCopy(ResponeType::ResponeType_OnConnectionStatus, m_msgQueue, m_pClass, ConnectionStatus::ConnectionStatus_Disconnected, 0, nullptr, 0, nullptr, 0, nullptr, 0);
-		// Ö÷¶¯´¥·¢
+		m_msgQueue->Input_NoCopy(ResponseType::ResponseType_OnConnectionStatus, m_msgQueue, m_pClass, ConnectionStatus::ConnectionStatus_Disconnected, 0, nullptr, 0, nullptr, 0, nullptr, 0);
+		// ä¸»åŠ¨è§¦å‘
 		m_msgQueue->Process();
 	}
 
@@ -243,7 +250,7 @@ void CQueryApi::Disconnect()
 		m_msgQueue = nullptr;
 	}
 
-	m_lRequestID = 0;//ÓÉÓÚÏß³ÌÒÑ¾­Í£Ö¹£¬Ã»ÓĞ±ØÒªÓÃÔ­×Ó²Ù×÷ÁË
+	m_lRequestID = 0;//ç”±äºçº¿ç¨‹å·²ç»åœæ­¢ï¼Œæ²¡æœ‰å¿…è¦ç”¨åŸå­æ“ä½œäº†
 	
 	Clear();
 }
@@ -273,7 +280,7 @@ void CQueryApi::Clear()
 
 void CQueryApi::OnFrontConnected()
 {
-	m_msgQueue->Input_NoCopy(ResponeType::ResponeType_OnConnectionStatus, m_msgQueue, m_pClass, ConnectionStatus::ConnectionStatus_Connected, 0, nullptr, 0, nullptr, 0, nullptr, 0);
+	m_msgQueue->Input_NoCopy(ResponseType::ResponseType_OnConnectionStatus, m_msgQueue, m_pClass, ConnectionStatus::ConnectionStatus_Connected, 0, nullptr, 0, nullptr, 0, nullptr, 0);
 
 	//ReqUserLogin();
 	ReqFetchAuthRandCode();
@@ -283,11 +290,11 @@ void CQueryApi::OnFrontDisconnected(int nReason)
 {
 	RspUserLoginField* pField = (RspUserLoginField*)m_msgQueue->new_block(sizeof(RspUserLoginField));
 
-	//Á¬½ÓÊ§°Ü·µ»ØµÄĞÅÏ¢ÊÇÆ´½Ó¶ø³É£¬Ö÷ÒªÊÇÎªÁËÍ³Ò»Êä³ö
+	//è¿æ¥å¤±è´¥è¿”å›çš„ä¿¡æ¯æ˜¯æ‹¼æ¥è€Œæˆï¼Œä¸»è¦æ˜¯ä¸ºäº†ç»Ÿä¸€è¾“å‡º
 	pField->RawErrorID = nReason;
 	GetOnFrontDisconnectedMsg(nReason, pField->Text);
 
-	m_msgQueue->Input_NoCopy(ResponeType::ResponeType_OnConnectionStatus, m_msgQueue, m_pClass, ConnectionStatus::ConnectionStatus_Disconnected, 0, pField, sizeof(RspUserLoginField), nullptr, 0, nullptr, 0);
+	m_msgQueue->Input_NoCopy(ResponseType::ResponseType_OnConnectionStatus, m_msgQueue, m_pClass, ConnectionStatus::ConnectionStatus_Disconnected, 0, pField, sizeof(RspUserLoginField), nullptr, 0, nullptr, 0);
 }
 
 void CQueryApi::ReqFetchAuthRandCode()
@@ -302,7 +309,7 @@ void CQueryApi::ReqFetchAuthRandCode()
 
 int CQueryApi::_ReqFetchAuthRandCode(char type, void* pApi1, void* pApi2, double double1, double double2, void* ptr1, int size1, void* ptr2, int size2, void* ptr3, int size3)
 {
-	m_msgQueue->Input_NoCopy(ResponeType::ResponeType_OnConnectionStatus, m_msgQueue, m_pClass, ConnectionStatus::ConnectionStatus_Authorizing, 0, nullptr, 0, nullptr, 0, nullptr, 0);
+	m_msgQueue->Input_NoCopy(ResponseType::ResponseType_OnConnectionStatus, m_msgQueue, m_pClass, ConnectionStatus::ConnectionStatus_Authorizing, 0, nullptr, 0, nullptr, 0, nullptr, 0);
 	return m_pApi->ReqFetchAuthRandCode((CSecurityFtdcAuthRandCodeField*)ptr1, ++m_lRequestID);
 }
 
@@ -313,7 +320,7 @@ void CQueryApi::OnRspFetchAuthRandCode(CSecurityFtdcAuthRandCodeField *pAuthRand
 	if (!IsErrorRspInfo(pRspInfo)
 		&& pAuthRandCode)
 	{
-		m_msgQueue->Input_NoCopy(ResponeType::ResponeType_OnConnectionStatus, m_msgQueue, m_pClass, ConnectionStatus::ConnectionStatus_Authorized, 0, pField, sizeof(RspUserLoginField), nullptr, 0, nullptr, 0);
+		m_msgQueue->Input_NoCopy(ResponseType::ResponseType_OnConnectionStatus, m_msgQueue, m_pClass, ConnectionStatus::ConnectionStatus_Authorized, 0, pField, sizeof(RspUserLoginField), nullptr, 0, nullptr, 0);
 
 		ReqUserLogin(pAuthRandCode->RandCode);
 	}
@@ -322,7 +329,7 @@ void CQueryApi::OnRspFetchAuthRandCode(CSecurityFtdcAuthRandCodeField *pAuthRand
 		pField->RawErrorID = pRspInfo->ErrorID;
 		strncpy(pField->Text, pRspInfo->ErrorMsg, sizeof(Char256Type));
 
-		m_msgQueue->Input_NoCopy(ResponeType::ResponeType_OnConnectionStatus, m_msgQueue, m_pClass, ConnectionStatus::ConnectionStatus_Disconnected, 0, pField, sizeof(RspUserLoginField), nullptr, 0, nullptr, 0);
+		m_msgQueue->Input_NoCopy(ResponseType::ResponseType_OnConnectionStatus, m_msgQueue, m_pClass, ConnectionStatus::ConnectionStatus_Disconnected, 0, pField, sizeof(RspUserLoginField), nullptr, 0, nullptr, 0);
 	}
 }
 
@@ -343,7 +350,7 @@ void CQueryApi::ReqUserLogin(TSecurityFtdcAuthCodeType	RandCode)
 
 int CQueryApi::_ReqUserLogin(char type, void* pApi1, void* pApi2, double double1, double double2, void* ptr1, int size1, void* ptr2, int size2, void* ptr3, int size3)
 {
-	m_msgQueue->Input_NoCopy(ResponeType::ResponeType_OnConnectionStatus, m_msgQueue, m_pClass, ConnectionStatus::ConnectionStatus_Logining, 0, nullptr, 0, nullptr, 0, nullptr, 0);
+	m_msgQueue->Input_NoCopy(ResponseType::ResponseType_OnConnectionStatus, m_msgQueue, m_pClass, ConnectionStatus::ConnectionStatus_Logining, 0, nullptr, 0, nullptr, 0, nullptr, 0);
 	return m_pApi->ReqUserLogin((CSecurityFtdcReqUserLoginField*)ptr1, ++m_lRequestID);
 }
 
@@ -359,18 +366,18 @@ void CQueryApi::OnRspUserLogin(CSecurityFtdcRspUserLoginField *pRspUserLogin, CS
 
 		sprintf(pField->SessionID, "%d:%d", pRspUserLogin->FrontID, pRspUserLogin->SessionID);
 
-		m_msgQueue->Input_NoCopy(ResponeType::ResponeType_OnConnectionStatus, m_msgQueue, m_pClass, ConnectionStatus::ConnectionStatus_Logined, 0, pField, sizeof(RspUserLoginField), nullptr, 0, nullptr, 0);
+		m_msgQueue->Input_NoCopy(ResponseType::ResponseType_OnConnectionStatus, m_msgQueue, m_pClass, ConnectionStatus::ConnectionStatus_Logined, 0, pField, sizeof(RspUserLoginField), nullptr, 0, nullptr, 0);
 
-		// ¼ÇÏÂµÇÂ¼ĞÅÏ¢£¬¿ÉÄÜ»áÓÃµ½
+		// è®°ä¸‹ç™»å½•ä¿¡æ¯ï¼Œå¯èƒ½ä¼šç”¨åˆ°
 		memcpy(&m_RspUserLogin,pRspUserLogin,sizeof(CSecurityFtdcRspUserLoginField));
 		m_nMaxOrderRef = atol(pRspUserLogin->MaxOrderRef);
-		// ×Ô¼º·¢µ¥Ê±ID´Ó1¿ªÊ¼£¬²»ÄÜ´Ó0¿ªÊ¼
+		// è‡ªå·±å‘å•æ—¶IDä»1å¼€å§‹ï¼Œä¸èƒ½ä»0å¼€å§‹
 		m_nMaxOrderRef = m_nMaxOrderRef>1 ? m_nMaxOrderRef : 1;
 		//ReqSettlementInfoConfirm();
 		ReqQueryField body = { 0 };
 		ReqQuery(QueryType::QueryType_ReqQryInvestor, &body);
 
-		m_msgQueue->Input_NoCopy(ResponeType::ResponeType_OnConnectionStatus, m_msgQueue, m_pClass, ConnectionStatus::ConnectionStatus_Done, 0, nullptr, 0, nullptr, 0, nullptr, 0);
+		m_msgQueue->Input_NoCopy(ResponseType::ResponseType_OnConnectionStatus, m_msgQueue, m_pClass, ConnectionStatus::ConnectionStatus_Done, 0, nullptr, 0, nullptr, 0, nullptr, 0);
 
 		if (m_ServerInfo.PrivateTopicResumeType > ResumeType::ResumeType_Restart
 			&& (m_ServerInfo.PrivateTopicResumeType<ResumeType::ResumeType_Undefined))
@@ -386,7 +393,7 @@ void CQueryApi::OnRspUserLogin(CSecurityFtdcRspUserLoginField *pRspUserLogin, CS
 		pField->RawErrorID = pRspInfo->ErrorID;
 		strncpy(pField->Text, pRspInfo->ErrorMsg, sizeof(Char256Type));
 
-		m_msgQueue->Input_NoCopy(ResponeType::ResponeType_OnConnectionStatus, m_msgQueue, m_pClass, ConnectionStatus::ConnectionStatus_Disconnected, 0, pField, sizeof(RspUserLoginField), nullptr, 0, nullptr, 0);
+		m_msgQueue->Input_NoCopy(ResponseType::ResponseType_OnConnectionStatus, m_msgQueue, m_pClass, ConnectionStatus::ConnectionStatus_Disconnected, 0, pField, sizeof(RspUserLoginField), nullptr, 0, nullptr, 0);
 	}
 }
 
@@ -432,11 +439,11 @@ void CQueryApi::OnRspQryTradingAccount(CSecurityFtdcTradingAccountField *pTradin
 			pField->Commission = pTradingAccount->Commission;
 			pField->CashIn = pTradingAccount->CashIn;
 
-			m_msgQueue->Input_NoCopy(ResponeType::ResponeType_OnRspQryTradingAccount, m_msgQueue, m_pClass, bIsLast, 0, pField, sizeof(AccountField), nullptr, 0, nullptr, 0);
+			m_msgQueue->Input_NoCopy(ResponseType::ResponseType_OnRspQryTradingAccount, m_msgQueue, m_pClass, bIsLast, 0, pField, sizeof(AccountField), nullptr, 0, nullptr, 0);
 		}
 		else
 		{
-			m_msgQueue->Input_NoCopy(ResponeType::ResponeType_OnRspQryTradingAccount, m_msgQueue, m_pClass, bIsLast, 0, nullptr, 0, nullptr, 0, nullptr, 0);
+			m_msgQueue->Input_NoCopy(ResponseType::ResponseType_OnRspQryTradingAccount, m_msgQueue, m_pClass, bIsLast, 0, nullptr, 0, nullptr, 0, nullptr, 0);
 		}
 	}
 }
@@ -454,8 +461,8 @@ int CQueryApi::_ReqQryInvestorPosition(char type, void* pApi1, void* pApi2, doub
 	return m_pApi->ReqQryInvestorPosition(&body, ++m_lRequestID);
 }
 
-// ¹úÕ®Äæ»Ø¹º£¬³Ö²ÖÊÇNet£¬ÎÒ¹éÀàµ½ÁËLongÖĞ£¬Èç¹ûÎÒÖ±½Ó´Ó³É½»ÖĞ·ÖÎö³öÀ´µÄÓÖ¹éµ½ÁËNetÖĞ
-// ËùÓĞ¿ªÆ½ºÍÍ¶±£ÀàĞÍ¶¼ÊÇ¿Õ
+// å›½å€ºé€†å›è´­ï¼ŒæŒä»“æ˜¯Netï¼Œæˆ‘å½’ç±»åˆ°äº†Longä¸­ï¼Œå¦‚æœæˆ‘ç›´æ¥ä»æˆäº¤ä¸­åˆ†æå‡ºæ¥çš„åˆå½’åˆ°äº†Netä¸­
+// æ‰€æœ‰å¼€å¹³å’ŒæŠ•ä¿ç±»å‹éƒ½æ˜¯ç©º
 void CQueryApi::OnRspQryInvestorPosition(CSecurityFtdcInvestorPositionField *pInvestorPosition, CSecurityFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast)
 {
 	if (!IsErrorRspInfo("OnRspQryInvestorPosition", pRspInfo, nRequestID, bIsLast))
@@ -472,10 +479,13 @@ void CQueryApi::OnRspQryInvestorPosition(CSecurityFtdcInvestorPositionField *pIn
 			if (it == m_id_platform_position.end())
 			{
 				pField = (PositionField*)m_msgQueue->new_block(sizeof(PositionField));
+				// æ·»åŠ 
+				strcpy(pField->ID, positionId);
 
 				sprintf(pField->Symbol, "%s.%s", pInvestorPosition->InstrumentID, pInvestorPosition->ExchangeID);
 				strcpy(pField->InstrumentID, pInvestorPosition->InstrumentID);
 				strcpy(pField->ExchangeID, pInvestorPosition->ExchangeID);
+				strcpy(pField->AccountID, pInvestorPosition->AccountID);
 				pField->Side = TSecurityFtdcPosiDirectionType_2_PositionSide(pInvestorPosition->PosiDirection);
 				pField->HedgeFlag = TSecurityFtdcHedgeFlagType_2_HedgeFlagType(pInvestorPosition->HedgeFlag);
 
@@ -490,7 +500,7 @@ void CQueryApi::OnRspQryInvestorPosition(CSecurityFtdcInvestorPositionField *pIn
 			pField->TodayPosition = pInvestorPosition->TodayPosition;
 			pField->HistoryPosition = pInvestorPosition->YdPosition;
 
-			// µÈÊı¾İÊÕ¼¯È«ÁËÔÙ±éÀúÍ¨ÖªÒ»´Î
+			// ç­‰æ•°æ®æ”¶é›†å…¨äº†å†éå†é€šçŸ¥ä¸€æ¬¡
 			if (bIsLast)
 			{
 				int cnt = 0;
@@ -498,7 +508,7 @@ void CQueryApi::OnRspQryInvestorPosition(CSecurityFtdcInvestorPositionField *pIn
 				for (unordered_map<string, PositionField*>::iterator iter = m_id_platform_position.begin(); iter != m_id_platform_position.end(); iter++)
 				{
 					++cnt;
-					m_msgQueue->Input_Copy(ResponeType::ResponeType_OnRspQryInvestorPosition, m_msgQueue, m_pClass, cnt == count, 0, iter->second, sizeof(PositionField), nullptr, 0, nullptr, 0);
+					m_msgQueue->Input_Copy(ResponseType::ResponseType_OnRspQryInvestorPosition, m_msgQueue, m_pClass, cnt == count, 0, iter->second, sizeof(PositionField), nullptr, 0, nullptr, 0);
 				}
 			}
 		}
@@ -540,7 +550,7 @@ void CQueryApi::OnRspQryInstrument(CSecurityFtdcInstrumentField *pInstrument, CS
 			pField->StrikePrice = pInstrument->ExecPrice;
 
 
-			// ÆÚÈ¨µÄ±êµÄÎï
+			// æœŸæƒçš„æ ‡çš„ç‰©
 			if (strlen(pInstrument->InstrumentID) == 8)
 			{
 				strncpy(pField->UnderlyingInstrID, pInstrument->ExchangeInstID, 6);
@@ -548,11 +558,11 @@ void CQueryApi::OnRspQryInstrument(CSecurityFtdcInstrumentField *pInstrument, CS
 			}
 
 
-			m_msgQueue->Input_NoCopy(ResponeType::ResponeType_OnRspQryInstrument, m_msgQueue, m_pClass, bIsLast, 0, pField, sizeof(InstrumentField), nullptr, 0, nullptr, 0);
+			m_msgQueue->Input_NoCopy(ResponseType::ResponseType_OnRspQryInstrument, m_msgQueue, m_pClass, bIsLast, 0, pField, sizeof(InstrumentField), nullptr, 0, nullptr, 0);
 		}
 		else
 		{
-			m_msgQueue->Input_NoCopy(ResponeType::ResponeType_OnRspQryInstrument, m_msgQueue, m_pClass, bIsLast, 0, nullptr, 0, nullptr, 0, nullptr, 0);
+			m_msgQueue->Input_NoCopy(ResponseType::ResponseType_OnRspQryInstrument, m_msgQueue, m_pClass, bIsLast, 0, nullptr, 0, nullptr, 0, nullptr, 0);
 		}
 	}
 }
@@ -582,45 +592,45 @@ void CQueryApi::OnOrder(CSecurityFtdcOrderField *pOrder, int nRequestID, bool bI
 	OrderIDType orderSydId = { 0 };
 
 	{
-		// ±£´æÔ­Ê¼¶©µ¥ĞÅÏ¢£¬ÓÃÓÚ³·µ¥
+		// ä¿å­˜åŸå§‹è®¢å•ä¿¡æ¯ï¼Œç”¨äºæ’¤å•
 
 		unordered_map<string, CSecurityFtdcOrderField*>::iterator it = m_id_api_order.find(orderId);
 		if (it == m_id_api_order.end())
 		{
-			// ÕÒ²»µ½´Ë¶©µ¥£¬±íÊ¾ÊÇĞÂµ¥
+			// æ‰¾ä¸åˆ°æ­¤è®¢å•ï¼Œè¡¨ç¤ºæ˜¯æ–°å•
 			CSecurityFtdcOrderField* pField = new CSecurityFtdcOrderField();
 			memcpy(pField, pOrder, sizeof(CSecurityFtdcOrderField));
 			m_id_api_order.insert(pair<string, CSecurityFtdcOrderField*>(orderId, pField));
 		}
 		else
 		{
-			// ÕÒµ½ÁË¶©µ¥
-			// ĞèÒªÔÙ¸´ÖÆ±£´æ×îºóÒ»´ÎµÄ×´Ì¬£¬»¹ÊÇÖ»ÒªµÚÒ»´ÎµÄÓÃÓÚ³·µ¥¼´¿É£¿¼ÇÏÂ£¬ÕâÑù×îºóºÃ±È½Ï
+			// æ‰¾åˆ°äº†è®¢å•
+			// éœ€è¦å†å¤åˆ¶ä¿å­˜æœ€åä¸€æ¬¡çš„çŠ¶æ€ï¼Œè¿˜æ˜¯åªè¦ç¬¬ä¸€æ¬¡çš„ç”¨äºæ’¤å•å³å¯ï¼Ÿè®°ä¸‹ï¼Œè¿™æ ·æœ€åå¥½æ¯”è¾ƒ
 			CSecurityFtdcOrderField* pField = it->second;
 			memcpy(pField, pOrder, sizeof(CSecurityFtdcOrderField));
 		}
 
-		// ±£´æSysIDÓÃÓÚ¶¨Òå³É½»»Ø±¨Óë¶©µ¥
+		// ä¿å­˜SysIDç”¨äºå®šä¹‰æˆäº¤å›æŠ¥ä¸è®¢å•
 		sprintf(orderSydId, "%s:%s", pOrder->ExchangeID, pOrder->OrderSysID);
 		m_sysId_orderId.insert(pair<string, string>(orderSydId, orderId));
 	}
 
 	{
-		// ´ÓAPIµÄ¶©µ¥×ª»»³É×Ô¼ºµÄ½á¹¹Ìå
+		// ä»APIçš„è®¢å•è½¬æ¢æˆè‡ªå·±çš„ç»“æ„ä½“
 		if (nRequestID == 0)
 		{
 			OrderField* pField = nullptr;
 			unordered_map<string, OrderField*>::iterator it = m_id_platform_order.find(orderId);
 			if (it == m_id_platform_order.end())
 			{
-				// ¿ªÅÌÊ±·¢µ¥ĞÅÏ¢»¹Ã»ÓĞ£¬ËùÒÔÕÒ²»µ½¶ÔÓ¦µÄµ¥×Ó£¬ĞèÒª½øĞĞOrderµÄ»Ö¸´
+				// å¼€ç›˜æ—¶å‘å•ä¿¡æ¯è¿˜æ²¡æœ‰ï¼Œæ‰€ä»¥æ‰¾ä¸åˆ°å¯¹åº”çš„å•å­ï¼Œéœ€è¦è¿›è¡ŒOrderçš„æ¢å¤
 				pField = (OrderField*)m_msgQueue->new_block(sizeof(OrderField));
 
-				// ¿ªÅÌÊ±·¢µ¥ĞÅÏ¢»¹Ã»ÓĞ£¬ËùÒÔÕÒ²»µ½¶ÔÓ¦µÄµ¥×Ó£¬ĞèÒª½øĞĞOrderµÄ»Ö¸´
+				// å¼€ç›˜æ—¶å‘å•ä¿¡æ¯è¿˜æ²¡æœ‰ï¼Œæ‰€ä»¥æ‰¾ä¸åˆ°å¯¹åº”çš„å•å­ï¼Œéœ€è¦è¿›è¡ŒOrderçš„æ¢å¤
 				CSecurityFtdcOrderField_2_OrderField_0(orderId, pOrder, pField);
 
 
-				// Ìí¼Óµ½mapÖĞ£¬ÓÃÓÚÆäËü¹¤¾ßµÄ¶ÁÈ¡£¬³·µ¥Ê§°ÜÊ±µÄÔÙÍ¨ÖªµÈ
+				// æ·»åŠ åˆ°mapä¸­ï¼Œç”¨äºå…¶å®ƒå·¥å…·çš„è¯»å–ï¼Œæ’¤å•å¤±è´¥æ—¶çš„å†é€šçŸ¥ç­‰
 				m_id_platform_order.insert(pair<string, OrderField*>(orderId, pField));
 			}
 			else
@@ -636,20 +646,20 @@ void CQueryApi::OnOrder(CSecurityFtdcOrderField *pOrder, int nRequestID, bool bI
 				strncpy(pField->Text, pOrder->StatusMsg, sizeof(Char256Type));
 			}
 
-			m_msgQueue->Input_Copy(ResponeType::ResponeType_OnRtnOrder, m_msgQueue, m_pClass, 0, 0, pField, sizeof(OrderField), nullptr, 0, nullptr, 0);
+			m_msgQueue->Input_Copy(ResponseType::ResponseType_OnRtnOrder, m_msgQueue, m_pClass, 0, 0, pField, sizeof(OrderField), nullptr, 0, nullptr, 0);
 		}
 		else
 		{
 			OrderField* pField = nullptr;
 			pField = (OrderField*)m_msgQueue->new_block(sizeof(OrderField));
 
-			// ¿ªÅÌÊ±·¢µ¥ĞÅÏ¢»¹Ã»ÓĞ£¬ËùÒÔÕÒ²»µ½¶ÔÓ¦µÄµ¥×Ó£¬ĞèÒª½øĞĞOrderµÄ»Ö¸´
+			// å¼€ç›˜æ—¶å‘å•ä¿¡æ¯è¿˜æ²¡æœ‰ï¼Œæ‰€ä»¥æ‰¾ä¸åˆ°å¯¹åº”çš„å•å­ï¼Œéœ€è¦è¿›è¡ŒOrderçš„æ¢å¤
 			CSecurityFtdcOrderField_2_OrderField_0(orderId, pOrder, pField);
 
-			// Ìí¼Óµ½mapÖĞ£¬ÓÃÓÚÆäËü¹¤¾ßµÄ¶ÁÈ¡£¬³·µ¥Ê§°ÜÊ±µÄÔÙÍ¨ÖªµÈ
+			// æ·»åŠ åˆ°mapä¸­ï¼Œç”¨äºå…¶å®ƒå·¥å…·çš„è¯»å–ï¼Œæ’¤å•å¤±è´¥æ—¶çš„å†é€šçŸ¥ç­‰
 			//m_id_platform_order.insert(pair<string, OrderField*>(orderId, pField));
 
-			m_msgQueue->Input_Copy(ResponeType::ResponeType_OnRspQryOrder, m_msgQueue, m_pClass, bIsLast, 0, pField, sizeof(OrderField), nullptr, 0, nullptr, 0);
+			m_msgQueue->Input_Copy(ResponseType::ResponseType_OnRspQryOrder, m_msgQueue, m_pClass, bIsLast, 0, pField, sizeof(OrderField), nullptr, 0, nullptr, 0);
 
 			m_msgQueue->delete_block(pField);
 		}
@@ -699,7 +709,7 @@ void CQueryApi::OnTrade(CSecurityFtdcTradeField *pTrade, int nRequestID, bool bI
 	pField->Price = atof(pTrade->Price);
 	pField->OpenClose = TSecurityFtdcOffsetFlagType_2_OpenCloseType(pTrade->OffsetFlag);
 	pField->HedgeFlag = TSecurityFtdcHedgeFlagType_2_HedgeFlagType(pTrade->HedgeFlag);
-	pField->Commission = 0;//TODOÊÕĞø·ÑÒÔºóÒª¼ÆËã³öÀ´
+	pField->Commission = 0;//TODOæ”¶ç»­è´¹ä»¥åè¦è®¡ç®—å‡ºæ¥
 	pField->Time = GetTime(pTrade->TradeTime);
 	strcpy(pField->TradeID, pTrade->TradeID);
 
@@ -710,26 +720,26 @@ void CQueryApi::OnTrade(CSecurityFtdcTradeField *pTrade, int nRequestID, bool bI
 		unordered_map<string, string>::iterator it = m_sysId_orderId.find(orderSysId);
 		if (it == m_sysId_orderId.end())
 		{
-			// ´Ë³É½»ÕÒ²»µ½¶ÔÓ¦µÄ±¨µ¥
+			// æ­¤æˆäº¤æ‰¾ä¸åˆ°å¯¹åº”çš„æŠ¥å•
 			//assert(false);
 		}
 		else
 		{
-			// ÕÒµ½¶ÔÓ¦µÄ±¨µ¥
+			// æ‰¾åˆ°å¯¹åº”çš„æŠ¥å•
 			strcpy(pField->ID, it->second.c_str());
 
-			m_msgQueue->Input_Copy(ResponeType::ResponeType_OnRtnTrade, m_msgQueue, m_pClass, 0, 0, pField, sizeof(TradeField), nullptr, 0, nullptr, 0);
+			m_msgQueue->Input_Copy(ResponseType::ResponseType_OnRtnTrade, m_msgQueue, m_pClass, 0, 0, pField, sizeof(TradeField), nullptr, 0, nullptr, 0);
 
 			unordered_map<string, OrderField*>::iterator it2 = m_id_platform_order.find(it->second);
 			if (it2 == m_id_platform_order.end())
 			{
-				// ´Ë³É½»ÕÒ²»µ½¶ÔÓ¦µÄ±¨µ¥
+				// æ­¤æˆäº¤æ‰¾ä¸åˆ°å¯¹åº”çš„æŠ¥å•
 				//assert(false);
 			}
 			else
 			{
-				// ¸üĞÂ¶©µ¥µÄ×´Ì¬
-				// ÊÇ·ñÒªÍ¨Öª½Ó¿Ú
+				// æ›´æ–°è®¢å•çš„çŠ¶æ€
+				// æ˜¯å¦è¦é€šçŸ¥æ¥å£
 			}
 
 			OnTrade(pField);
@@ -737,10 +747,10 @@ void CQueryApi::OnTrade(CSecurityFtdcTradeField *pTrade, int nRequestID, bool bI
 	}
 	else
 	{
-		m_msgQueue->Input_Copy(ResponeType::ResponeType_OnRspQryTrade, m_msgQueue, m_pClass, bIsLast, 0, pField, sizeof(TradeField), nullptr, 0, nullptr, 0);
+		m_msgQueue->Input_Copy(ResponseType::ResponseType_OnRspQryTrade, m_msgQueue, m_pClass, bIsLast, 0, pField, sizeof(TradeField), nullptr, 0, nullptr, 0);
 	}
 	
-	// ÇåÀíÄÚ´æ
+	// æ¸…ç†å†…å­˜
 	m_msgQueue->delete_block(pField);
 }
 
@@ -784,7 +794,7 @@ void CQueryApi::OnTrade(TradeField *pTrade)
 		else
 		{
 			pField->HistoryPosition -= pTrade->Qty;
-			// Èç¹û×òÌìµÄ±»¼õ³É¸ºÊı£¬´Ó½ñÌì¿ªÊ¼¼ÌĞø¼õ
+			// å¦‚æœæ˜¨å¤©çš„è¢«å‡æˆè´Ÿæ•°ï¼Œä»ä»Šå¤©å¼€å§‹ç»§ç»­å‡
 			if (pField->HistoryPosition<0)
 			{
 				pField->TodayPosition += pField->HistoryPosition;
@@ -792,7 +802,7 @@ void CQueryApi::OnTrade(TradeField *pTrade)
 			}
 		}
 
-		// ¼ÆËã´íÎó£¬Ö±½ÓÖØĞÂ²éÑ¯
+		// è®¡ç®—é”™è¯¯ï¼Œç›´æ¥é‡æ–°æŸ¥è¯¢
 		if (pField->Position < 0 || pField->TodayPosition < 0 || pField->HistoryPosition < 0)
 		{
 			ReqQueryField body = { 0 };
@@ -801,7 +811,7 @@ void CQueryApi::OnTrade(TradeField *pTrade)
 		}
 	}
 
-	m_msgQueue->Input_Copy(ResponeType::ResponeType_OnRspQryInvestorPosition, m_msgQueue, m_pClass, false, 0, pField, sizeof(PositionField), nullptr, 0, nullptr, 0);
+	m_msgQueue->Input_Copy(ResponseType::ResponseType_OnRspQryInvestorPosition, m_msgQueue, m_pClass, false, 0, pField, sizeof(PositionField), nullptr, 0, nullptr, 0);
 }
 
 void CQueryApi::OnRspQryTrade(CSecurityFtdcTradeField *pTrade, CSecurityFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast)
@@ -849,11 +859,11 @@ void CQueryApi::OnRspQryInvestor(CSecurityFtdcInvestorField *pInvestor, CSecurit
 			strcpy(pField->IdentifiedCardNo, pInvestor->IdentifiedCardNo);
 			pField->IdentifiedCardType = TSecurityFtdcIdCardTypeType_2_IdCardType(pInvestor->IdentifiedCardType);
 
-			m_msgQueue->Input_NoCopy(ResponeType::ResponeType_OnRspQryInvestor, m_msgQueue, m_pClass, bIsLast, 0, pField, sizeof(InvestorField), nullptr, 0, nullptr, 0);
+			m_msgQueue->Input_NoCopy(ResponseType::ResponseType_OnRspQryInvestor, m_msgQueue, m_pClass, bIsLast, 0, pField, sizeof(InvestorField), nullptr, 0, nullptr, 0);
 		}
 		else
 		{
-			m_msgQueue->Input_NoCopy(ResponeType::ResponeType_OnRspQryInvestor, m_msgQueue, m_pClass, bIsLast, 0, nullptr, 0, nullptr, 0, nullptr, 0);
+			m_msgQueue->Input_NoCopy(ResponseType::ResponseType_OnRspQryInvestor, m_msgQueue, m_pClass, bIsLast, 0, nullptr, 0, nullptr, 0, nullptr, 0);
 		}
 	}
 }

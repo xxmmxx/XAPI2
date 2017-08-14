@@ -82,9 +82,15 @@ public:
 
 	virtual void OnRspQryInstrument(CXApi* pApi, InstrumentField* pInstrument, int size1, bool bIsLast){};
 	virtual void OnRspQryTradingAccount(CXApi* pApi, AccountField* pAccount, int size1, bool bIsLast){};
-	virtual void OnRspQryInvestorPosition(CXApi* pApi, PositionField* pPosition, int size1, bool bIsLast){};
+	virtual void OnRspQryInvestorPosition(CXApi* pApi, PositionField* pPosition, int size1, bool bIsLast)
+	{
+		printf("%s,%s\r\n", pPosition->InstrumentName, pPosition->InstrumentID);
+	}
 	virtual void OnRspQrySettlementInfo(CXApi* pApi, SettlementInfoField* pSettlementInfo, int size1, bool bIsLast){};
 	virtual void OnRspQryInvestor(CXApi* pApi, InvestorField* pInvestor, int size1, bool bIsLast){};
+	
+	
+	
 	virtual void OnRtnOrder(CXApi* pApi, OrderField* pOrder)
 	{
 		printf("%d,%s\r\n", pOrder->RawErrorID,pOrder->Text);
@@ -125,12 +131,12 @@ public:
 	int count;
 };
 
-int main_1(int argc, char* argv[])
+int main_111(int argc, char* argv[])
 {
 	CXSpiImpl* p = new CXSpiImpl();
 #if defined WINDOWS || _WIN32
-	char DLLPath1[250] = "CTP_Quote\\CTP_Quote_x86.dll";
-	char DLLPath2[250] = "CTP_Trade\\CTP_Trade_x86.dll";
+	char DLLPath1[250] = "C:\\Program Files\\SmartQuant Ltd\\OpenQuant 2014\\XAPI\\x86\\CTP\\CTP_Quote_x86.dll";
+	char DLLPath2[250] = "C:\\Program Files\\SmartQuant Ltd\\OpenQuant 2014\\XAPI\\x86\\CTP\\CTP_Trade_x86.dll";
 #else
     char DLLPath1[250] = "libQuantBox_CTP_Quote.so";
 	char DLLPath2[250] = "libQuantBox_CTP_Trade.so";
@@ -140,11 +146,11 @@ int main_1(int argc, char* argv[])
 	ServerInfoField				m_ServerInfo2 = { 0 };
 	UserInfoField				m_UserInfo = { 0 };
 
-	strcpy(m_ServerInfo1.BrokerID, "1017");
-	strcpy(m_ServerInfo1.Address, "tcp://ctpmn1-front1.citicsf.com:51213");
+	strcpy(m_ServerInfo1.BrokerID, "4040");
+	strcpy(m_ServerInfo1.Address, "tcp://yhzx-front1.yhqh.com:41213;tcp://yhzx-front3.yhqh.com:41213");
 
-	strcpy(m_ServerInfo2.BrokerID, "1017");
-	strcpy(m_ServerInfo2.Address, "tcp://ctpmn1-front1.citicsf.com:51205");
+	strcpy(m_ServerInfo2.BrokerID, "4040");
+	strcpy(m_ServerInfo2.Address, "tcp://yhzx-front1.yhqh.com:51205;tcp://yhzx-front3.yhqh.com:52205");
 
 	strcpy(m_UserInfo.UserID, "00000025");
 	strcpy(m_UserInfo.Password, "123456");
@@ -304,11 +310,11 @@ int main_4(int argc, char* argv[])
 	return 0;
 }
 
-int main(int argc, char* argv[])
+int main_122(int argc, char* argv[])
 {
 	CXSpiImpl* p = new CXSpiImpl();
 #if defined WINDOWS || _WIN32
-	char DLLPath1[250] = "Tdx_Trade\\Tdx_Trade_x86.dll";
+	char DLLPath1[250] = "C:\\Program Files\\SmartQuant Ltd\\OpenQuant 2014\\XAPI\\x86\\Tdx\\Tdx_Trade_x86.dl";
 #else
 	char DLLPath1[250] = "libQuantBox_CTP_Quote.so";
 #endif
@@ -354,6 +360,69 @@ int main(int argc, char* argv[])
 		} while (true);
 
 		pApi1->Disconnect();
+	}
+
+	return 0;
+}
+
+int main(int argc, char* argv[])
+{
+	CXSpiImpl* p = new CXSpiImpl();
+#if defined WINDOWS || _WIN32
+	char DLLPath1[250] = "C:\\Program Files\\SmartQuant Ltd\\OpenQuant 2014\\XAPI\\x86\\CTP\\CTP_Quote_x86.dll";
+	char DLLPath2[250] = "C:\\Program Files\\SmartQuant Ltd\\OpenQuant 2014\\XAPI\\x86\\CTP\\CTP_Trade_x86.dll";
+#else
+	char DLLPath1[250] = "libQuantBox_CTP_Quote.so";
+	char DLLPath2[250] = "libQuantBox_CTP_Trade.so";
+#endif
+
+	ServerInfoField				m_ServerInfo1 = { 0 };
+	ServerInfoField				m_ServerInfo2 = { 0 };
+	UserInfoField				m_UserInfo = { 0 };
+
+	strcpy(m_ServerInfo1.BrokerID, "4040");
+	strcpy(m_ServerInfo1.Address, "tcp://yhzx-front1.yhqh.com:41213;tcp://yhzx-front3.yhqh.com:41213");
+
+	strcpy(m_ServerInfo2.BrokerID, "4040");
+	strcpy(m_ServerInfo2.Address, "tcp://yhzx-front1.yhqh.com:51205;tcp://yhzx-front3.yhqh.com:52205");
+
+	strcpy(m_UserInfo.UserID, "00000025");
+	strcpy(m_UserInfo.Password, "123456");
+
+	
+
+	while (true)
+	{
+		CXApi* pApi1 = CXApi::CreateApi(DLLPath1);
+		CXApi* pApi2 = CXApi::CreateApi(DLLPath2);
+
+		if (!pApi1->Init())
+		{
+			printf("%s\r\n", pApi1->GetLastError());
+			pApi1->Disconnect();
+			break;
+		}
+
+		if (!pApi2->Init())
+		{
+			printf("%s\r\n", pApi2->GetLastError());
+			pApi2->Disconnect();
+			break;
+		}
+
+		pApi1->RegisterSpi(p);
+		pApi1->Connect("D:\\", &m_ServerInfo1, &m_UserInfo, 1);
+		printf("已经执行完Connect\n");
+
+		pApi2->RegisterSpi(p);
+		pApi2->Connect("D:\\", &m_ServerInfo2, &m_UserInfo, 1);
+		printf("已经执行完Connect\n");
+		getchar();
+
+		pApi1->Disconnect();
+		pApi2->Disconnect();
+		printf("已经执行完Disconnect");
+		//getchar();
 	}
 
 	return 0;

@@ -43,8 +43,11 @@ namespace XAPI.COM
         [DispId(41)]
         void SetQuery(string key, object value);
         [DispId(42)]
-        void ReqQuery(XAPI.QueryType type);
+        void ReqQuery(string type);
         [DispId(50)]
         QueueData TryDequeue();
+
+        [DispId(60)]
+        void GCCollect();
     }
 }

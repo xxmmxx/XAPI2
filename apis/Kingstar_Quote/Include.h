@@ -1,4 +1,4 @@
-// stdafx.h : include file for standard system include files,
+﻿// stdafx.h : include file for standard system include files,
 // or project specific include files that are used frequently, but
 // are changed infrequently
 //
@@ -16,9 +16,23 @@
 using namespace KingstarAPI;
 
 #ifdef _WIN64
-#pragma comment(lib, "../../include/Kingstar/win64/KSMarketDataAPI.lib")
-#pragma comment(lib, "../../lib/Queue_x64.lib")
+	#pragma comment(lib, "../../include/Kingstar/win64/KSMarketDataAPI.lib")
+	#ifdef _DEBUG
+	#pragma comment(lib, "../../lib/Queue_x64d.lib")
+	#else
+	#pragma comment(lib, "../../lib/Queue_x64.lib")
+	#endif
 #else
-#pragma comment(lib, "../../include/Kingstar/win32/KSMarketDataAPI.lib")
-#pragma comment(lib, "../../lib/Queue_x86.lib")
+	#pragma comment(lib, "../../include/Kingstar/win32/KSMarketDataAPI.lib")
+	#ifdef _DEBUG
+	#pragma comment(lib, "../../lib/Queue_x86d.lib")
+	#else
+	#pragma comment(lib, "../../lib/Queue_x86.lib")
+	#endif
 #endif
+
+// 为了解决金仕达授权问题而加的功能
+#define KS_LKC_FILENAME	"KSInterB2C"
+#define KS_LKC_EXT	"lkc"
+
+#define KS_COPYFILE 1
