@@ -347,6 +347,8 @@ struct ServerInfoField
 	ProductInfoType		UserProductInfo;
 	///授权码
 	AuthCodeType		AuthCode;
+	///App代码
+	AppIDType			AppID;
 	///地址信息
 	AddressType			Address;
 	///配置文件路径
@@ -632,7 +634,20 @@ struct InvestorField
 };
 
 
-
+/// 合约状态信息，CTP中其实是交易所信息
+struct InstrumentStatusField
+{
+	///唯一符号
+	SymbolType			Symbol;
+	///合约代码
+	InstrumentIDType	InstrumentID;
+	///交易所代码
+	ExchangeIDType		ExchangeID;
+	///合约交易状态
+	TradingPhaseType	InstrumentStatus;
+	///进入本状态时间
+	TimeIntType			EnterTime;
+};
 
 
 

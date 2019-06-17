@@ -180,58 +180,6 @@ ExecType CThostFtdcOrderField_2_ExecType(CThostFtdcOrderField* pIn)
 	}
 }
 
-OrderStatus CThostFtdcQuoteField_2_OrderStatus(CThostFtdcQuoteField* pIn)
-{
-	switch (pIn->QuoteStatus)
-	{
-	case THOST_FTDC_OST_Canceled:
-		if (pIn->OrderSubmitStatus == THOST_FTDC_OSS_InsertRejected)
-			return OrderStatus::OrderStatus_Rejected;
-		return OrderStatus::OrderStatus_Cancelled;
-	case THOST_FTDC_OST_Unknown:
-		// 如果是撤单，也有可能出现这一条，如何过滤？
-		if (pIn->OrderSubmitStatus == THOST_FTDC_OSS_InsertSubmitted)
-			return OrderStatus::OrderStatus_New;
-	case THOST_FTDC_OST_Touched:
-		if (pIn->OrderSubmitStatus == THOST_FTDC_OSS_InsertRejected)
-			return OrderStatus::OrderStatus_Rejected;
-	default:
-		// 这个地方要改
-
-		//if (pIn->VolumeTotal == 0)
-		//	return OrderStatus::OrderStatus_Filled;
-		//else if (pIn->VolumeTotal == pIn->VolumeTotalOriginal)
-			return OrderStatus::OrderStatus_New;
-		//else
-		//	return OrderStatus::OrderStatus_PartiallyFilled;
-	}
-}
-
-ExecType CThostFtdcQuoteField_2_ExecType(CThostFtdcQuoteField* pIn)
-{
-	switch (pIn->QuoteStatus)
-	{
-	case THOST_FTDC_OST_Canceled:
-		if (pIn->OrderSubmitStatus == THOST_FTDC_OSS_InsertRejected)
-			return ExecType::ExecType_Rejected;
-		return ExecType::ExecType_Cancelled;
-	case THOST_FTDC_OST_Unknown:
-		// 如果是撤单，也有可能出现这一条，如何过滤？
-		if (pIn->OrderSubmitStatus == THOST_FTDC_OSS_InsertSubmitted)
-			return ExecType::ExecType_New;
-	case THOST_FTDC_OST_AllTraded:
-	case THOST_FTDC_OST_PartTradedQueueing:
-		return ExecType::ExecType_Trade;
-	case THOST_FTDC_OST_Touched:
-		if (pIn->OrderSubmitStatus == THOST_FTDC_OSS_InsertRejected)
-			return ExecType::ExecType_Rejected;
-	default:
-		return ExecType::ExecType_New;
-	}
-}
-
-
-
 OrderType CThostFtdcOrderField_2_OrderType(CThostFtdcOrderField* pIn)
 {
 	switch (pIn->OrderPriceType)
@@ -312,6 +260,29 @@ IdCardType TThostFtdcIdCardTypeType_2_IdCardType(TThostFtdcIdCardTypeType In)
 	}
 }
 
+TradingPhaseType TThostFtdcInstrumentStatusType_2_TradingPhaseType(TThostFtdcInstrumentStatusType In)
+{
+	switch (In)
+	{
+	case THOST_FTDC_IS_BeforeTrading:
+		return TradingPhaseType::TradingPhaseType_BeforeTrading;
+	case THOST_FTDC_IS_NoTrading:
+		return TradingPhaseType::TradingPhaseType_NoTrading;
+	case THOST_FTDC_IS_Continous:
+		return TradingPhaseType::TradingPhaseType_Continuous;
+	case THOST_FTDC_IS_AuctionOrdering:
+		return TradingPhaseType::TradingPhaseType_AuctionOrdering;
+	case THOST_FTDC_IS_AuctionBalance:
+		return TradingPhaseType::TradingPhaseType_AuctionBalance;
+	case THOST_FTDC_IS_AuctionMatch:
+		return TradingPhaseType::TradingPhaseType_AuctionMatch;
+	case THOST_FTDC_IS_Closed:
+		return TradingPhaseType::TradingPhaseType_Closed;
+	default:
+		return TradingPhaseType::TradingPhaseType_NoTrading;
+	}
+}
+
 ExchangeType TThostFtdcExchangeIDType_2_ExchangeType(TThostFtdcExchangeIDType In)
 {
 	switch (In[1])
@@ -354,3 +325,56 @@ void CThostFtdcOrderField_2_OrderField_0(OrderIDType OrderID,CThostFtdcOrderFiel
 	strcpy(pOut->OrderID, pIn->OrderSysID);
 	strncpy(pOut->Text, pIn->StatusMsg, sizeof(Char256Type));
 }
+
+#ifdef HAS_Quote
+OrderStatus CThostFtdcQuoteField_2_OrderStatus(CThostFtdcQuoteField* pIn)
+{
+	switch (pIn->QuoteStatus)
+	{
+	case THOST_FTDC_OST_Canceled:
+		if (pIn->OrderSubmitStatus == THOST_FTDC_OSS_InsertRejected)
+			return OrderStatus::OrderStatus_Rejected;
+		return OrderStatus::OrderStatus_Cancelled;
+	case THOST_FTDC_OST_Unknown:
+		// 如果是撤单，也有可能出现这一条，如何过滤？
+		if (pIn->OrderSubmitStatus == THOST_FTDC_OSS_InsertSubmitted)
+			return OrderStatus::OrderStatus_New;
+	case THOST_FTDC_OST_Touched:
+		if (pIn->OrderSubmitStatus == THOST_FTDC_OSS_InsertRejected)
+			return OrderStatus::OrderStatus_Rejected;
+	default:
+		// 这个地方要改
+
+		//if (pIn->VolumeTotal == 0)
+		//	return OrderStatus::OrderStatus_Filled;
+		//else if (pIn->VolumeTotal == pIn->VolumeTotalOriginal)
+		return OrderStatus::OrderStatus_New;
+		//else
+		//	return OrderStatus::OrderStatus_PartiallyFilled;
+	}
+}
+
+ExecType CThostFtdcQuoteField_2_ExecType(CThostFtdcQuoteField* pIn)
+{
+	switch (pIn->QuoteStatus)
+	{
+	case THOST_FTDC_OST_Canceled:
+		if (pIn->OrderSubmitStatus == THOST_FTDC_OSS_InsertRejected)
+			return ExecType::ExecType_Rejected;
+		return ExecType::ExecType_Cancelled;
+	case THOST_FTDC_OST_Unknown:
+		// 如果是撤单，也有可能出现这一条，如何过滤？
+		if (pIn->OrderSubmitStatus == THOST_FTDC_OSS_InsertSubmitted)
+			return ExecType::ExecType_New;
+	case THOST_FTDC_OST_AllTraded:
+	case THOST_FTDC_OST_PartTradedQueueing:
+		return ExecType::ExecType_Trade;
+	case THOST_FTDC_OST_Touched:
+		if (pIn->OrderSubmitStatus == THOST_FTDC_OSS_InsertRejected)
+			return ExecType::ExecType_Rejected;
+	default:
+		return ExecType::ExecType_New;
+	}
+}
+#endif // HAS_Quote
+

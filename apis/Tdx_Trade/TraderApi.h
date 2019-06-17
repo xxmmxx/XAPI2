@@ -1,24 +1,17 @@
 ﻿#pragma once
 
+#include "../../include/CrossPlatform.h"
 #include "../../include/Tdx/TdxApi.h"
 #include "../../include/ApiStruct.h"
 #include "../../include/IDGenerator.h"
 #include "../../include/QueueEnum.h"
 
+#ifndef USE_CMAKE
 #ifdef _WIN64
 	#pragma comment(lib, "../../include/Tdx/win64/TdxApi.lib")
-	#ifdef _DEBUG
-	#pragma comment(lib, "../../lib/Queue_x64d.lib")
-	#else
-	#pragma comment(lib, "../../lib/Queue_x64.lib")
-	#endif
 #else
 	#pragma comment(lib, "../../include/Tdx/win32/TdxApi.lib")
-	#ifdef _DEBUG
-	#pragma comment(lib, "../../lib/Queue_x86d.lib")
-	#else
-	#pragma comment(lib, "../../lib/Queue_x86.lib")
-	#endif
+#endif
 #endif
 
 #include "SingleUser.h"
@@ -117,8 +110,6 @@ private:
 
 	friend void* __stdcall Query(char type, void* pApi1, void* pApi2, double double1, double double2, void* ptr1, int size1, void* ptr2, int size2, void* ptr3, int size3);
 	virtual void QueryInThread(char type, void* pApi1, void* pApi2, double double1, double double2, void* ptr1, int size1, void* ptr2, int size2, void* ptr3, int size3);
-	
-	//friend void* __stdcall Test(char type, void* pApi1, void* pApi2, double double1, double double2, void* ptr1, int size1, void* ptr2, int size2, void* ptr3, int size3);
 	virtual void TestInThread(char type, void* pApi1, void* pApi2, double double1, double double2, void* ptr1, int size1, void* ptr2, int size2, void* ptr3, int size3);
 
 	int _Init();

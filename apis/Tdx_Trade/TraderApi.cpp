@@ -2,7 +2,6 @@
 #include "TraderApi.h"
 
 #include "../../include/QueueEnum.h"
-#include "../../include/QueueHeader.h"
 
 #include "../../include/ApiHeader.h"
 #include "../../include/ApiStruct.h"
@@ -10,7 +9,7 @@
 #include "../../include/ApiProcess.h"
 #include "../../include/toolkit.h"
 
-#include "../../common/Queue/MsgQueue.h"
+#include "../../include/queue/MsgQueue.h"
 
 #include "TypeConvert.h"
 
@@ -97,14 +96,6 @@ void CTraderApi::QueryInThread(char type, void* pApi1, void* pApi2, double doubl
 
 	this_thread::sleep_for(chrono::milliseconds(m_nSleep));
 }
-
-//void* __stdcall Test(char type, void* pApi1, void* pApi2, double double1, double double2, void* ptr1, int size1, void* ptr2, int size2, void* ptr3, int size3)
-//{
-//	// 由内部调用，不用检查是否为空
-//	CTraderApi* pApi = (CTraderApi*)pApi2;
-//	pApi->TestInThread(type, pApi1, pApi2, double1, double2, ptr1, size1, ptr2, size2, ptr3, size3);
-//	return nullptr;
-//}
 
 void CTraderApi::TestInThread(char type, void* pApi1, void* pApi2, double double1, double double2, void* ptr1, int size1, void* ptr2, int size2, void* ptr3, int size3)
 {
@@ -383,7 +374,7 @@ CTraderApi::CTraderApi(void)
 	m_msgQueue = new CMsgQueue();
 	m_msgQueue_Query = new CMsgQueue();
 
-	m_msgQueue_Query->Register(Query,this);
+	m_msgQueue_Query->Register(Query);
 	m_msgQueue_Query->StartThread();
 
 	m_pDefaultUser = nullptr;
@@ -401,8 +392,8 @@ void CTraderApi::Register(void* pCallback, void* pClass)
 	if (m_msgQueue == nullptr)
 		return;
 
-	m_msgQueue_Query->Register(Query,this);
-	m_msgQueue->Register(pCallback,this);
+	m_msgQueue_Query->Register(Query);
+	m_msgQueue->Register((fnOnResponse)pCallback);
 	if (pCallback)
 	{
 		m_msgQueue_Query->StartThread();
@@ -474,7 +465,7 @@ void CTraderApi::_Disconnect(bool IsInQueue)
 		if (m_msgQueue_Query)
 		{
 			m_msgQueue_Query->StopThread();
-			m_msgQueue_Query->Register(nullptr, nullptr);
+			m_msgQueue_Query->Register(nullptr);
 			m_msgQueue_Query->Clear();
 			delete m_msgQueue_Query;
 			m_msgQueue_Query = nullptr;
@@ -502,7 +493,7 @@ void CTraderApi::_Disconnect(bool IsInQueue)
 	if (m_msgQueue)
 	{
 		m_msgQueue->StopThread();
-		m_msgQueue->Register(nullptr,nullptr);
+		m_msgQueue->Register(nullptr);
 		m_msgQueue->Clear();
 		delete m_msgQueue;
 		m_msgQueue = nullptr;

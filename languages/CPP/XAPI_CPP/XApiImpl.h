@@ -1,7 +1,7 @@
 #pragma once
+#include "../../../include/CrossPlatform.h"
 #include "../../../include/XApiCpp.h"
 
-#include "../../../include/QueueHeader.h"
 
 class CXApiImpl :
 	public CXApi

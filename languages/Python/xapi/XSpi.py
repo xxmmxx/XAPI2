@@ -4,55 +4,65 @@
 # import pydevd
 from .XStruct import *
 
+import logging
+
+logger = logging.getLogger("XApi")
+
 
 class XSpi(object):
-    def __init__(self):
-        pass
 
-    def OnConnectionStatus(self, status, pUserLogin, size1):
-        print(u'OnConnectionStatus={0}'.format(ConnectionStatus[status]))
+    def OnConnectionStatus(self, api, status, pUserLogin, size1):
+        logger.info('OnConnectionStatus={0}'.format(ConnectionStatus[status]))
         if size1 > 0:
-            print(pUserLogin)
+            logger.info(pUserLogin)
 
-    def OnRtnError(self, pError):
-        print(pError)
+    def OnRtnError(self, api, pError):
+        logger.error(pError)
 
-    def OnLog(self, pLog):
-        print(pLog)
+    def OnRtnInstrumentStatus(self, api, pInstrumentStatus):
+        logger.debug(pInstrumentStatus)
 
-    def OnRspQryInstrument(self, pInstrument, size1, bIsLast):
+    def OnLog(self, api, pLog):
+        logger.info(pLog)
+
+    def OnRspQryInstrument(self, api, pInstrument, size1, bIsLast):
         if size1 > 0:
-            print(pInstrument)
+            logger.info(pInstrument)
 
-    def OnRspQryTradingAccount(self, pAccount, size1, bIsLast):
+    def OnRspQryTradingAccount(self, api, pAccount, size1, bIsLast):
         if size1 > 0:
-            print(pAccount)
+            logger.info(pAccount)
 
-    def OnRspQryInvestorPosition(self, pPosition, size1, bIsLast):
+    def OnRspQryInvestorPosition(self, api, pPosition, size1, bIsLast):
         if size1 > 0:
-            print(pPosition)
+            logger.info(pPosition)
 
-    def OnRspQryOrder(self, pOrder, size1, bIsLast):
+    def OnRspQryOrder(self, api, pOrder, size1, bIsLast):
         if size1 > 0:
-            print(pOrder)
+            logger.info(pOrder)
 
-    def OnRspQryInvestor(self, pInvestor, size1, bIsLast):
+    def OnRspQryInvestor(self, api, pInvestor, size1, bIsLast):
         if size1 > 0:
-            print(pInvestor)
+            logger.info(pInvestor)
 
-    def OnRtnOrder(self, pOrder):
-        print(pOrder)
+    def OnRtnOrder(self, api, pOrder):
+        logger.info(pOrder)
 
-    def OnRtnTrade(self, pTrade):
-        print(pTrade)
+    def OnRtnTrade(self, api, pTrade):
+        logger.info(pTrade)
 
-    def OnRtnDepthMarketData(self, ptr1, size1):
+    def OnRtnDepthMarketData(self, api, ptr1, size1):
         # 这是从交易接口拿到的行情
         obj = cast(ptr1, POINTER(DepthMarketDataNField)).contents
-        print(obj)
+        logger.info(obj)
 
         # 打印N档行情
         for i in range(obj.get_ticks_count()):
             p = ptr1 + sizeof(DepthMarketDataNField) + sizeof(DepthField) * i
             d = cast(p, POINTER(DepthField)).contents
-            print(d)
+            logger.info(d)
+
+    def OnRspQrySettlementInfo(self, api, ptr1, size1, bIsLast):
+        if size1 > 0:
+            obj = cast(ptr1, POINTER(SettlementInfoField)).contents
+            logger.info(obj)

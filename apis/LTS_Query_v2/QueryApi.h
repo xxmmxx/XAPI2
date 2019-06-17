@@ -1,23 +1,16 @@
 #pragma once
 
+#include "../../include/CrossPlatform.h"
 #include "../../include/LTS_v2/SecurityFtdcQueryApi.h"
 #include "../../include/ApiStruct.h"
 #include "../../include/QueueEnum.h"
 
+#ifndef USE_CMAKE
 #ifdef _WIN64
 	#pragma comment(lib, "../../include/LTS_v2/win64/securityqueryapi.lib")
-	#ifdef _DEBUG
-	#pragma comment(lib, "../../lib/Queue_x64d.lib")
-	#else
-	#pragma comment(lib, "../../lib/Queue_x64.lib")
-	#endif
 #else
 	#pragma comment(lib, "../../include/LTS_v2/win32/securityqueryapi.lib")
-	#ifdef _DEBUG
-	#pragma comment(lib, "../../lib/Queue_x86d.lib")
-	#else
-	#pragma comment(lib, "../../lib/Queue_x86.lib")
-	#endif
+#endif
 #endif
 
 #include <set>

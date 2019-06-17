@@ -12,7 +12,7 @@ namespace XAPI
     /// </summary>
     [ComVisible(false)]
     [StructLayout(LayoutKind.Sequential, Pack = 1, CharSet = CharSet.Ansi)]
-    public struct ReqQueryField
+    public class ReqQueryField
     {
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = 64)]
         public byte[] InstrumentName;
@@ -56,7 +56,7 @@ namespace XAPI
     ///持仓
     [ComVisible(false)]
     [StructLayout(LayoutKind.Sequential, Pack = 1, CharSet = CharSet.Ansi)]
-    public struct PositionField
+    public class PositionField
     {
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = 64)]
         public byte[] InstrumentName;
@@ -75,7 +75,7 @@ namespace XAPI
         public HedgeFlagType HedgeFlag;
         public int Date;
         public double PositionCost;
-        
+
         public double Position;
         public double TodayPosition;
         public double HistoryPosition;
@@ -108,7 +108,7 @@ namespace XAPI
     /// </summary>
     [ComVisible(false)]
     [StructLayout(LayoutKind.Sequential, Pack = 1, CharSet = CharSet.Ansi)]
-    public struct QuoteField
+    public class QuoteField
     {
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = 64)]
         public byte[] InstrumentName;
@@ -164,7 +164,7 @@ namespace XAPI
     /// </summary>
     [ComVisible(false)]
     [StructLayout(LayoutKind.Sequential, Pack = 1, CharSet = CharSet.Ansi)]
-    public struct OrderField
+    public class OrderField
     {
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = 64)]
         public byte[] InstrumentName;
@@ -231,7 +231,7 @@ namespace XAPI
     /// </summary>
     [ComVisible(false)]
     [StructLayout(LayoutKind.Sequential, Pack = 1, CharSet = CharSet.Ansi)]
-    public struct TradeField
+    public class TradeField
     {
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = 64)]
         public byte[] InstrumentName;
@@ -282,7 +282,7 @@ namespace XAPI
     /// </summary>
     [ComVisible(false)]
     [StructLayout(LayoutKind.Sequential, Pack = 1, CharSet = CharSet.Ansi)]
-    public struct ServerInfoField
+    public class ServerInfoField
     {
         /// <summary>
         /// 订阅主题
@@ -325,6 +325,11 @@ namespace XAPI
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 17)]
         public string AuthCode;
         /// <summary>
+        /// App代码
+        /// </summary>
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 33)]
+        public string AppID;
+        /// <summary>
         /// 地址
         /// </summary>
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 512)]
@@ -347,7 +352,7 @@ namespace XAPI
     /// </summary>
     [ComVisible(false)]
     [StructLayout(LayoutKind.Sequential, Pack = 1, CharSet = CharSet.Ansi)]
-    public struct UserInfoField
+    public class UserInfoField
     {
         /// <summary>
         /// 用户代码
@@ -376,7 +381,7 @@ namespace XAPI
     /// </summary>
     [ComVisible(false)]
     [StructLayout(LayoutKind.Sequential, Pack = 1, CharSet = CharSet.Ansi)]
-    public struct ErrorField
+    public class ErrorField
     {
         /// <summary>
         /// 错误代码
@@ -404,7 +409,7 @@ namespace XAPI
     /// </summary>
     [ComVisible(false)]
     [StructLayout(LayoutKind.Sequential, Pack = 1, CharSet = CharSet.Ansi)]
-    public struct LogField
+    public class LogField
     {
         /// <summary>
         /// 日志级别
@@ -423,7 +428,7 @@ namespace XAPI
     /// </summary>
     [ComVisible(true)]
     [StructLayout(LayoutKind.Sequential, Pack = 1, CharSet = CharSet.Ansi)]
-    public struct RspUserLoginField
+    public class RspUserLoginField
     {
         /// <summary>
         /// 交易日
@@ -438,7 +443,7 @@ namespace XAPI
         /// </summary>
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]
         public string SessionID;
-        
+
         /// <summary>
         /// 
         /// </summary>
@@ -470,14 +475,14 @@ namespace XAPI
         public byte[] Text;
     }
 
-    
+
 
     /// <summary>
     /// DepthField行情
     /// </summary>
     [ComVisible(false)]
     [StructLayout(LayoutKind.Sequential, Pack = 1, CharSet = CharSet.Ansi)]
-    public struct DepthField
+    public class DepthField
     {
         public double Price;
         public int Size;
@@ -490,7 +495,7 @@ namespace XAPI
     /// </summary>
     [ComVisible(false)]
     [StructLayout(LayoutKind.Sequential, Pack = 1, CharSet = CharSet.Ansi)]
-    public struct InstrumentField
+    public class InstrumentField
     {
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = 64)]
         public byte[] InstrumentName;
@@ -554,7 +559,7 @@ namespace XAPI
     /// </summary>
     [ComVisible(false)]
     [StructLayout(LayoutKind.Sequential, Pack = 1, CharSet = CharSet.Ansi)]
-    public struct AccountField
+    public class AccountField
     {
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]
         public string ClientID;
@@ -637,7 +642,7 @@ namespace XAPI
     /// </summary>
     [ComVisible(false)]
     [StructLayout(LayoutKind.Sequential, Pack = 1, CharSet = CharSet.Ansi)]
-    public struct QuoteRequestField
+    public class QuoteRequestField
     {
         /// <summary>
         /// 合约代码
@@ -709,7 +714,7 @@ namespace XAPI
     /// </summary>
     [ComVisible(false)]
     [StructLayout(LayoutKind.Sequential, Pack = 1, CharSet = CharSet.Ansi)]
-    public struct InvestorField
+    public class InvestorField
     {
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]
         public string InvestorID;
@@ -725,7 +730,7 @@ namespace XAPI
 
     [ComVisible(false)]
     [StructLayout(LayoutKind.Sequential, Pack = 1, CharSet = CharSet.Ansi)]
-    public struct OrderIDType
+    public class OrderIDType
     {
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 64)]
         public string ID;
@@ -736,7 +741,7 @@ namespace XAPI
     /// </summary>
     [ComVisible(false)]
     [StructLayout(LayoutKind.Sequential, Pack = 1, CharSet = CharSet.Ansi)]
-    public struct DepthMarketDataNField
+    public class DepthMarketDataNField
     {
         ///占用总字节大小
         public int Size;
@@ -942,6 +947,35 @@ namespace XAPI
     }
 
 
+    /// <summary>
+    /// 深度行情N档
+    /// </summary>
+    [ComVisible(false)]
+    [StructLayout(LayoutKind.Sequential, Pack = 1, CharSet = CharSet.Ansi)]
+    public class InstrumentStatusField
+    {
+        /// <summary>
+        /// 合约代码
+        /// </summary>
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 64)]
+        public string Symbol;
+        /// <summary>
+        /// 合约代码
+        /// </summary>
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 31)]
+        public string InstrumentID;
+        /// <summary>
+        /// 交易所代码
+        /// </summary>
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 9)]
+        public string ExchangeID;
+
+        ///交易阶段类型
+        public TradingPhaseType InstrumentStatus;
+
+        public int EnterTime;
+    };
+
 
 
 
@@ -960,7 +994,7 @@ namespace XAPI
     /// </summary>
     [ComVisible(false)]
     [StructLayout(LayoutKind.Sequential, Pack = 1, CharSet = CharSet.Ansi)]
-    public struct TickField
+    public class TickField
     {
         public int Date;
         public int Time;
@@ -980,7 +1014,7 @@ namespace XAPI
     /// </summary>
     [ComVisible(false)]
     [StructLayout(LayoutKind.Sequential, Pack = 1, CharSet = CharSet.Ansi)]
-    public struct BarField
+    public class BarField
     {
         public int Date;
         public int Time;
